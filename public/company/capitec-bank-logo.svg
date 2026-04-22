@@ -1,0 +1,13 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="320" rx="28" fill="#F8F8F8"/>
+  <g transform="translate(42 26)">
+    <path d="M30 16C30 7.16344 37.1634 0 46 0H122V40C122 60.9868 104.987 78 84 78H30V16Z" fill="#0084C6"/>
+    <path d="M206 94C206 102.837 198.837 110 190 110H114V70C114 49.0132 131.013 32 152 32H206V94Z" fill="#FF3945"/>
+    <path d="M76 0H154V20C154 33.2548 143.255 44 130 44H104C88.536 44 76 31.464 76 16V0Z" fill="white"/>
+    <path d="M162 110H84V90C84 76.7452 94.7452 66 108 66H134C149.464 66 162 78.536 162 94V110Z" fill="white"/>
+    <path d="M30 78H94V110H46C37.1634 110 30 102.837 30 94V78Z" fill="#00558B"/>
+    <path d="M142 0H190C198.837 0 206 7.16344 206 16V32H142V0Z" fill="#FF2937"/>
+  </g>
+  <text x="160" y="210" text-anchor="middle" fill="#191919" font-size="52" font-family="Georgia, 'Times New Roman', serif" letter-spacing="3">CAPITEC</text>
+  <text x="160" y="262" text-anchor="middle" fill="#191919" font-size="42" font-family="Georgia, 'Times New Roman', serif" letter-spacing="3">BANK</text>
+</svg>
