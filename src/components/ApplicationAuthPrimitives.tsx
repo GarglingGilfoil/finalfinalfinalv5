@@ -1,4 +1,49 @@
-import { useId, useState } from "react";
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
+import {
+  $isListNode,
+  INSERT_ORDERED_LIST_COMMAND,
+  INSERT_UNORDERED_LIST_COMMAND,
+  ListItemNode,
+  ListNode,
+  REMOVE_LIST_COMMAND
+} from "@lexical/list";
+import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
+import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
+import {
+  $getRoot,
+  $getSelection,
+  $insertNodes,
+  $isRangeSelection,
+  COMMAND_PRIORITY_LOW,
+  FORMAT_TEXT_COMMAND,
+  SELECTION_CHANGE_COMMAND,
+  type LexicalEditor
+} from "lexical";
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Underline,
+  type LucideIcon
+} from "lucide-react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode
+} from "react";
 import type { AuthProvider } from "../contracts/application";
 
 interface AuthTextFieldProps {
@@ -9,7 +54,7 @@ interface AuthTextFieldProps {
   name: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: "email" | "text";
+  type?: "email" | "tel" | "text";
   value: string;
 }
 
@@ -26,11 +71,335 @@ interface AuthDividerProps {
   label: string;
 }
 
+type RichTextCommand = "bold" | "italic" | "underline" | "bullet" | "number";
+
+interface AuthRichTextFieldProps {
+  className?: string;
+  editorFooter?: ReactNode;
+  helperText?: string;
+  label: string;
+  name: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  value: string;
+}
+
 interface SocialAuthButtonsProps {
   actionLabel: string;
   disabled?: boolean;
   loadingProvider: AuthProvider | null;
   onSelect: (provider: Exclude<AuthProvider, "email">) => void;
+}
+
+const DEFAULT_RICH_TEXT_STATE: Record<RichTextCommand, boolean> = {
+  bold: false,
+  italic: false,
+  underline: false,
+  bullet: false,
+  number: false
+};
+
+const RICH_TEXT_BUTTONS: Array<{
+  command: RichTextCommand;
+  Icon: LucideIcon;
+  label: string;
+}> = [
+  {
+    command: "bold",
+    Icon: Bold,
+    label: "Bold"
+  },
+  {
+    command: "italic",
+    Icon: Italic,
+    label: "Italic"
+  },
+  {
+    command: "underline",
+    Icon: Underline,
+    label: "Underline"
+  },
+  {
+    command: "bullet",
+    Icon: List,
+    label: "Bulleted list"
+  },
+  {
+    command: "number",
+    Icon: ListOrdered,
+    label: "Numbered list"
+  }
+];
+
+const RICH_TEXT_THEME = {
+  list: {
+    listitem: "auth-rich-text__list-item",
+    nested: {
+      listitem: "auth-rich-text__nested-list-item"
+    },
+    ol: "auth-rich-text__ordered-list",
+    ul: "auth-rich-text__unordered-list"
+  },
+  paragraph: "auth-rich-text__paragraph",
+  text: {
+    bold: "auth-rich-text__text-bold",
+    italic: "auth-rich-text__text-italic",
+    underline: "auth-rich-text__text-underline"
+  }
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function looksLikeHtml(value: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(value);
+}
+
+function normalizeInitialRichTextHtml(value: string): string {
+  const candidate = value.trim();
+
+  if (!candidate) {
+    return "";
+  }
+
+  if (looksLikeHtml(candidate)) {
+    return candidate;
+  }
+
+  return candidate
+    .split(/\n{2,}/)
+    .map((line) => `<p>${escapeHtml(line).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+function getPlainTextFromHtml(value: string): string {
+  const candidate = value.trim();
+
+  if (!candidate) {
+    return "";
+  }
+
+  if (typeof document === "undefined") {
+    return candidate.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const scratch = document.createElement("div");
+  scratch.innerHTML = candidate;
+  return scratch.textContent?.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim() ?? "";
+}
+
+function normalizeGeneratedRichTextHtml(value: string): string {
+  const candidate = value.trim();
+
+  if (!candidate || !getPlainTextFromHtml(candidate)) {
+    return "";
+  }
+
+  return candidate;
+}
+
+function initializeRichTextEditor(editor: LexicalEditor, value: string): void {
+  const html = normalizeInitialRichTextHtml(value);
+
+  if (!html || typeof DOMParser === "undefined") {
+    return;
+  }
+
+  const parser = new DOMParser();
+  const dom = parser.parseFromString(html, "text/html");
+  const nodes = $generateNodesFromDOM(editor, dom);
+  const root = $getRoot();
+  root.clear();
+  root.select();
+  $insertNodes(nodes);
+}
+
+function getSelectedListType(): "bullet" | "number" | null {
+  const selection = $getSelection();
+
+  if (!$isRangeSelection(selection)) {
+    return null;
+  }
+
+  const anchorNode = selection.anchor.getNode();
+  const listNode =
+    $getNearestNodeOfType(anchorNode, ListNode) ??
+    ($isListNode(anchorNode) ? anchorNode : null);
+
+  if (!listNode) {
+    return null;
+  }
+
+  const listType = listNode.getListType();
+  return listType === "bullet" || listType === "number" ? listType : null;
+}
+
+function AuthRichTextToolbar({
+  toolbarLabel
+}: {
+  toolbarLabel: string;
+}): JSX.Element {
+  const [editor] = useLexicalComposerContext();
+  const [activeCommands, setActiveCommands] = useState(DEFAULT_RICH_TEXT_STATE);
+  const [focusedButtonIndex, setFocusedButtonIndex] = useState(0);
+  const toolbarButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const updateToolbar = useCallback(() => {
+    const selection = $getSelection();
+
+    if (!$isRangeSelection(selection)) {
+      setActiveCommands(DEFAULT_RICH_TEXT_STATE);
+      return;
+    }
+
+    const selectedListType = getSelectedListType();
+
+    setActiveCommands({
+      bold: selection.hasFormat("bold"),
+      italic: selection.hasFormat("italic"),
+      underline: selection.hasFormat("underline"),
+      bullet: selectedListType === "bullet",
+      number: selectedListType === "number"
+    });
+  }, []);
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          updateToolbar();
+        });
+      }),
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        () => {
+          updateToolbar();
+          return false;
+        },
+        COMMAND_PRIORITY_LOW
+      )
+    );
+  }, [editor, updateToolbar]);
+
+  const applyCommand = (command: RichTextCommand): void => {
+    if (command === "bold" || command === "italic" || command === "underline") {
+      editor.dispatchCommand(FORMAT_TEXT_COMMAND, command);
+      return;
+    }
+
+    if (command === "bullet") {
+      editor.dispatchCommand(
+        activeCommands.bullet ? REMOVE_LIST_COMMAND : INSERT_UNORDERED_LIST_COMMAND,
+        undefined
+      );
+      return;
+    }
+
+    editor.dispatchCommand(
+      activeCommands.number ? REMOVE_LIST_COMMAND : INSERT_ORDERED_LIST_COMMAND,
+      undefined
+    );
+  };
+
+  const focusToolbarButton = useCallback((nextIndex: number): void => {
+    const normalizedIndex =
+      (nextIndex + RICH_TEXT_BUTTONS.length) % RICH_TEXT_BUTTONS.length;
+    setFocusedButtonIndex(normalizedIndex);
+    toolbarButtonRefs.current[normalizedIndex]?.focus();
+  }, []);
+
+  const handleToolbarKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      focusToolbarButton(focusedButtonIndex + 1);
+      return;
+    }
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      focusToolbarButton(focusedButtonIndex - 1);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusToolbarButton(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      focusToolbarButton(RICH_TEXT_BUTTONS.length - 1);
+    }
+  };
+
+  return (
+    <div
+      aria-label={`${toolbarLabel} formatting toolbar`}
+      className="auth-rich-text__toolbar"
+      onKeyDown={handleToolbarKeyDown}
+      role="toolbar"
+    >
+      {RICH_TEXT_BUTTONS.map(({ Icon, ...button }, index) => (
+        <Fragment key={button.command}>
+          {button.command === "bullet" ? (
+            <span
+              aria-hidden="true"
+              className="auth-rich-text__toolbar-divider"
+              role="separator"
+            />
+          ) : null}
+          <button
+            aria-label={button.label}
+            aria-pressed={activeCommands[button.command]}
+            className="auth-rich-text__toolbar-button"
+            data-command={button.command}
+            data-state={activeCommands[button.command] ? "active" : "idle"}
+            onClick={() => {
+              setFocusedButtonIndex(index);
+              applyCommand(button.command);
+            }}
+            onFocus={() => {
+              setFocusedButtonIndex(index);
+            }}
+            ref={(node) => {
+              toolbarButtonRefs.current[index] = node;
+            }}
+            tabIndex={index === focusedButtonIndex ? 0 : -1}
+            title={button.label}
+            type="button"
+          >
+            <Icon aria-hidden="true" className="auth-rich-text__toolbar-icon" strokeWidth={2.1} />
+          </button>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function AuthRichTextOnChangePlugin({
+  onChange
+}: {
+  onChange: (value: string) => void;
+}): JSX.Element {
+  const [editor] = useLexicalComposerContext();
+
+  return (
+    <OnChangePlugin
+      ignoreSelectionChange
+      onChange={(editorState) => {
+        editorState.read(() => {
+          onChange(normalizeGeneratedRichTextHtml($generateHtmlFromNodes(editor, null)));
+        });
+      }}
+    />
+  );
 }
 
 function GoogleIcon(): JSX.Element {
@@ -168,6 +537,77 @@ export function AuthDivider({ label }: AuthDividerProps): JSX.Element {
   return (
     <div className="auth-divider" role="separator">
       <span>{label}</span>
+    </div>
+  );
+}
+
+export function AuthRichTextField({
+  className,
+  editorFooter,
+  helperText,
+  label,
+  name,
+  onChange,
+  placeholder,
+  value
+}: AuthRichTextFieldProps): JSX.Element {
+  const fieldId = useId();
+  const labelId = `${fieldId}-label`;
+  const helperId = helperText ? `${fieldId}-helper` : undefined;
+  const initialConfig = {
+    editorState: (editor: LexicalEditor) => {
+      initializeRichTextEditor(editor, value);
+    },
+    namespace: `DittoJobsRichText-${name}`,
+    nodes: [ListNode, ListItemNode],
+    onError: (error: Error) => {
+      throw error;
+    },
+    theme: RICH_TEXT_THEME
+  };
+
+  return (
+    <div className={["auth-field", "auth-field--rich-text", className].filter(Boolean).join(" ")}>
+      <div className="auth-field__label-row">
+        <span className="auth-field__label" id={labelId}>
+          {label}
+        </span>
+      </div>
+
+      <div className="auth-rich-text">
+        <LexicalComposer initialConfig={initialConfig}>
+          <AuthRichTextToolbar toolbarLabel={label} />
+          <RichTextPlugin
+            contentEditable={
+              <ContentEditable
+                aria-describedby={helperId}
+                aria-labelledby={labelId}
+                ariaMultiline
+                aria-placeholder={placeholder ?? ""}
+                className="auth-rich-text__editor"
+                id={fieldId}
+                placeholder={
+                  <div className="auth-rich-text__placeholder">{placeholder}</div>
+                }
+                role="textbox"
+              />
+            }
+            ErrorBoundary={LexicalErrorBoundary}
+            placeholder={null}
+          />
+          <HistoryPlugin />
+          <ListPlugin />
+          <AuthRichTextOnChangePlugin onChange={onChange} />
+        </LexicalComposer>
+        <input name={name} type="hidden" value={normalizeGeneratedRichTextHtml(value)} />
+        {editorFooter ? <div className="auth-rich-text__footer-slot">{editorFooter}</div> : null}
+      </div>
+
+      {helperText ? (
+        <span className="personal-details-card__textarea-note" id={helperId}>
+          {helperText}
+        </span>
+      ) : null}
     </div>
   );
 }

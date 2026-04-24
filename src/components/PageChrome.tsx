@@ -1,4 +1,4 @@
-import { buildApplicationAuthPath } from "../lib/router";
+import { buildApplicationAuthPath, buildJobViewPath } from "../lib/router";
 
 interface PageChromeHeaderProps {
   jobId: string;
@@ -8,7 +8,7 @@ export function PageChromeHeader({ jobId }: PageChromeHeaderProps): JSX.Element 
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <a className="site-header__brand" href="/">
+        <a className="site-header__brand" href={buildJobViewPath(jobId)}>
           <img
             alt="Ditto Jobs"
             className="site-header__wordmark"

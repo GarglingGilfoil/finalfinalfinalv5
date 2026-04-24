@@ -1,28 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApplicationAuthPage } from "../pages/ApplicationAuthPage";
 import { ApplicationCareerHistoryPage } from "../pages/ApplicationCareerHistoryPage";
+import { ApplicationConfirmPage } from "../pages/ApplicationConfirmPage";
+import { ApplicationPersonalDetailsPage } from "../pages/ApplicationPersonalDetailsPage";
 import { ApplicationParsingPage } from "../pages/ApplicationParsingPage";
 import { ApplicationUploadPage } from "../pages/ApplicationUploadPage";
 import { JobViewPage } from "../pages/JobViewPage";
 import { PageChromeFooter, PageChromeHeader } from "../components/PageChrome";
-import { buildJobViewPath, resolveRoute } from "../lib/router";
+import { resolveRoute, subscribeToRouteChanges } from "../lib/router";
 
 export function App(): JSX.Element {
-  const route = resolveRoute(window.location);
+  const [routeVersion, setRouteVersion] = useState(0);
+  const route = useMemo(() => resolveRoute(window.location), [routeVersion]);
 
   useEffect(() => {
-    if (route.kind !== "job-view") {
-      return;
-    }
-
-    const canonicalPath = buildJobViewPath(route.jobId);
-    const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
-    const canonicalUrl = canonicalPath;
-
-    if (`${currentPath}${window.location.search}` !== canonicalUrl) {
-      window.history.replaceState({}, "", canonicalUrl);
-    }
-  }, [route]);
+    return subscribeToRouteChanges(() => {
+      setRouteVersion((currentVersion) => currentVersion + 1);
+    });
+  }, []);
 
   let content: JSX.Element;
 
@@ -32,8 +27,12 @@ export function App(): JSX.Element {
     content = <ApplicationUploadPage jobId={route.jobId} />;
   } else if (route.kind === "application-parsing") {
     content = <ApplicationParsingPage jobId={route.jobId} />;
+  } else if (route.kind === "application-personal-details") {
+    content = <ApplicationPersonalDetailsPage jobId={route.jobId} />;
   } else if (route.kind === "application-career-history") {
     content = <ApplicationCareerHistoryPage jobId={route.jobId} />;
+  } else if (route.kind === "application-confirm") {
+    content = <ApplicationConfirmPage jobId={route.jobId} />;
   } else {
     content = (
       <JobViewPage initialLayout={route.layout} initialMotion={route.motion} jobId={route.jobId} />

@@ -29,8 +29,18 @@ export interface ApplicationParsingRoute {
   jobId: string;
 }
 
+export interface ApplicationPersonalDetailsRoute {
+  kind: "application-personal-details";
+  jobId: string;
+}
+
 export interface ApplicationCareerHistoryRoute {
   kind: "application-career-history";
+  jobId: string;
+}
+
+export interface ApplicationConfirmRoute {
+  kind: "application-confirm";
   jobId: string;
 }
 
@@ -39,9 +49,21 @@ export type AppRoute =
   | ApplicationAuthRoute
   | ApplicationUploadRoute
   | ApplicationParsingRoute
-  | ApplicationCareerHistoryRoute;
+  | ApplicationPersonalDetailsRoute
+  | ApplicationCareerHistoryRoute
+  | ApplicationConfirmRoute;
 
 const REFERENCE_JOB_ID = "196794136";
+const APP_ROUTE_CHANGE_EVENT = "ditto-jobs:route-change";
+
+export interface AppNavigationState<TPayload = Record<string, unknown>> {
+  payload?: TPayload;
+}
+
+interface NavigateOptions<TPayload = Record<string, unknown>> {
+  payload?: TPayload;
+  replace?: boolean;
+}
 
 export function parseAuthMode(search: string): ApplicationAuthMode {
   const mode = new URLSearchParams(search).get("mode");
@@ -54,7 +76,7 @@ export function parseAuthMode(search: string): ApplicationAuthMode {
 }
 
 export function buildJobViewPath(jobId: string): string {
-  return `/job/${jobId}`;
+  return `/jobs/${jobId}`;
 }
 
 export function buildApplicationAuthPath(
@@ -72,8 +94,55 @@ export function buildApplicationParsingPath(jobId: string): string {
   return `/jobs/${jobId}/apply/parsing`;
 }
 
+export function buildApplicationPersonalDetailsPath(jobId: string): string {
+  return `/jobs/${jobId}/apply/personal-details`;
+}
+
 export function buildApplicationCareerHistoryPath(jobId: string): string {
   return `/jobs/${jobId}/apply/history`;
+}
+
+export function buildApplicationConfirmPath(jobId: string): string {
+  return `/jobs/${jobId}/apply/confirm`;
+}
+
+export function navigateTo<TPayload = Record<string, unknown>>(
+  path: string,
+  options: NavigateOptions<TPayload> = {}
+): void {
+  if (window.location.pathname === path && !window.location.search) {
+    return;
+  }
+
+  const nextState: AppNavigationState<TPayload> | null = options.payload
+    ? {
+        payload: options.payload
+      }
+    : null;
+
+  if (options.replace) {
+    window.history.replaceState(nextState, "", path);
+  } else {
+    window.history.pushState(nextState, "", path);
+  }
+
+  window.dispatchEvent(new Event(APP_ROUTE_CHANGE_EVENT));
+}
+
+export function readNavigationState<TPayload = Record<string, unknown>>():
+  | AppNavigationState<TPayload>
+  | null {
+  return (window.history.state as AppNavigationState<TPayload> | null) ?? null;
+}
+
+export function subscribeToRouteChanges(onChange: () => void): () => void {
+  window.addEventListener("popstate", onChange);
+  window.addEventListener(APP_ROUTE_CHANGE_EVENT, onChange);
+
+  return () => {
+    window.removeEventListener("popstate", onChange);
+    window.removeEventListener(APP_ROUTE_CHANGE_EVENT, onChange);
+  };
 }
 
 export function resolveRoute(location: Pick<Location, "pathname" | "search">): AppRoute {
@@ -104,9 +173,15 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     };
   }
 
-  const historyMatch =
-    trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/history$/) ??
-    trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/confirm$/);
+  const personalDetailsMatch = trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/personal-details$/);
+  if (personalDetailsMatch?.[1]) {
+    return {
+      kind: "application-personal-details",
+      jobId: personalDetailsMatch[1]
+    };
+  }
+
+  const historyMatch = trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/history$/);
   if (historyMatch?.[1]) {
     return {
       kind: "application-career-history",
@@ -114,7 +189,15 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     };
   }
 
-  const jobMatch = trimmedPath.match(/^\/job\/([^/]+)$/) ?? trimmedPath.match(/^\/jobs\/([^/]+)$/);
+  const confirmMatch = trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/confirm$/);
+  if (confirmMatch?.[1]) {
+    return {
+      kind: "application-confirm",
+      jobId: confirmMatch[1]
+    };
+  }
+
+  const jobMatch = trimmedPath.match(/^\/jobs\/([^/]+)$/) ?? trimmedPath.match(/^\/job\/([^/]+)$/);
   if (jobMatch?.[1]) {
     return {
       kind: "job-view",

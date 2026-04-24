@@ -5,7 +5,8 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type DragEvent
+  type DragEvent,
+  type ReactNode
 } from "react";
 import { createPortal } from "react-dom";
 import type {
@@ -341,38 +342,48 @@ function OverlayPortal({ children }: { children: JSX.Element }): JSX.Element | n
 
 export function CompanyApplicationHeading({
   job,
+  rightSlot,
   session
 }: {
   job: JobViewData;
+  rightSlot?: ReactNode;
   session?: CandidateSession;
 }): JSX.Element {
   const [hasLogoError, setHasLogoError] = useState(false);
   const companyMonogram = useMemo(() => getCompanyMonogram(job.companyName), [job.companyName]);
   const showFallbackLogo = !job.companyLogoUrl || hasLogoError;
-  const signedInName = session ? `${session.firstName} ${session.lastName}` : null;
 
   return (
-    <article className="resume-upload-card__company-heading" aria-label={`${job.companyName}, ${job.title}`}>
-      <div className="resume-upload-card__identity-logo" aria-hidden="true">
-        {showFallbackLogo ? <span>{companyMonogram}</span> : null}
-        {job.companyLogoUrl && !showFallbackLogo ? (
-          <img
-            alt=""
-            onError={() => {
-              setHasLogoError(true);
-            }}
-            src={job.companyLogoUrl}
-          />
-        ) : null}
+    <article
+      className={[
+        "resume-upload-card__company-heading",
+        rightSlot ? "resume-upload-card__company-heading--with-aside" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={`${job.companyName}, ${job.title}`}
+    >
+      <div className="resume-upload-card__company-heading-main">
+        <div className="resume-upload-card__identity-logo" aria-hidden="true">
+          {showFallbackLogo ? <span>{companyMonogram}</span> : null}
+          {job.companyLogoUrl && !showFallbackLogo ? (
+            <img
+              alt=""
+              onError={() => {
+                setHasLogoError(true);
+              }}
+              src={job.companyLogoUrl}
+            />
+          ) : null}
+        </div>
+
+        <div className="resume-upload-card__company-heading-copy">
+          <h2>{job.companyName}</h2>
+          <p>{job.title}</p>
+        </div>
       </div>
 
-      <div className="resume-upload-card__company-heading-copy">
-        <h2>{job.companyName}</h2>
-        <p>{job.title}</p>
-        {signedInName ? (
-          <span className="resume-upload-card__company-heading-note">Signed in as {signedInName}</span>
-        ) : null}
-      </div>
+      {rightSlot ? <div className="resume-upload-card__company-heading-aside">{rightSlot}</div> : null}
     </article>
   );
 }
