@@ -6,6 +6,7 @@ import { ApplicationPersonalDetailsPage } from "../pages/ApplicationPersonalDeta
 import { ApplicationParsingPage } from "../pages/ApplicationParsingPage";
 import { ApplicationRoleQuestionsPage } from "../pages/ApplicationRoleQuestionsPage";
 import { ApplicationUploadPage } from "../pages/ApplicationUploadPage";
+import { CandidateProfilePage } from "../pages/CandidateProfilePage";
 import { JobViewPage } from "../pages/JobViewPage";
 import {
   ApplicationRouteTransition,
@@ -40,6 +41,8 @@ export function App(): JSX.Element {
     content = <ApplicationCareerHistoryPage jobId={route.jobId} />;
   } else if (route.kind === "application-confirm") {
     content = <ApplicationConfirmPage jobId={route.jobId} />;
+  } else if (route.kind === "candidate-profile") {
+    content = <CandidateProfilePage />;
   } else {
     content = (
       <JobViewPage initialLayout={route.layout} initialMotion={route.motion} jobId={route.jobId} />

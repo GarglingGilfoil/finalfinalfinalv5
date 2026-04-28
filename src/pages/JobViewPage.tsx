@@ -215,9 +215,7 @@ function renderDesktopLayout(
 
           <div className="job-sheet__body job-sheet__body--rail-layout">
             <aside className="job-sheet__summary-rail">
-              <div className="job-sheet__summary-card job-sheet__summary-card--cta">
-                {blocks.primaryApplyAction}
-              </div>
+              {blocks.primaryApplyAction}
               <div className="job-sheet__summary-card">{blocks.factGrid}</div>
               <div className="job-sheet__summary-card job-sheet__summary-card--light">
                 {blocks.taxonomy}
@@ -283,9 +281,7 @@ function renderDesktopLayout(
 
             <aside className="job-sheet__action-rail">
               <div className="job-sheet__action-rail-inner">
-                <div className="job-sheet__summary-card job-sheet__summary-card--cta">
-                  {blocks.primaryApplyAction}
-                </div>
+                {blocks.primaryApplyAction}
                 <div className="job-sheet__summary-card">{blocks.factGrid}</div>
                 <div className="job-sheet__summary-card job-sheet__summary-card--light">
                   {blocks.taxonomy}

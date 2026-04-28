@@ -723,7 +723,7 @@ function ReadyState({
           <header className="resume-upload-card__header personal-details-card__header">
             <p className="section-kicker">Personal details</p>
             <h1 ref={headingRef} tabIndex={-1}>
-              Complete your profile
+              A little more about you
             </h1>
             <p className="resume-upload-card__lead personal-details-card__lead">
               Add your location and a short intro. Photo and phone number are optional.
@@ -822,7 +822,6 @@ function ReadyState({
               </div>
 
               <AuthRichTextField
-                helperText="We’ll use these details to round out your application profile."
                 label="About Me (Optional)"
                 name="aboutMe"
                 onChange={(aboutMe) => {

@@ -27,6 +27,7 @@ import {
   buildApplicationPersonalDetailsPath,
   buildApplicationRoleQuestionsPath,
   buildApplicationUploadPath,
+  buildCandidateProfilePath,
   buildJobViewPath,
   readNavigationState
 } from "../lib/router";
@@ -490,7 +491,7 @@ function ProfileCompletionCard({
   jobId: string;
   profilePicture?: CandidateProfilePictureValue | null;
 }): JSX.Element {
-  const strengthenProfileHref = buildApplicationPersonalDetailsPath(jobId);
+  const strengthenProfileHref = buildCandidateProfilePath();
   const normalizedCandidateName = candidateName.trim() || "Your Ditto profile";
   const candidateMonogram = getCandidateMonogram(normalizedCandidateName);
 
@@ -506,14 +507,6 @@ function ProfileCompletionCard({
           Add details like availability, work preferences, and contact information when you’re ready.
         </p>
         <div className="application-success__profile-actions">
-          {/* Prototype-safe destination until the full candidate profile route exists. */}
-          <TransitionLink
-            className="button button--job-primary"
-            href={strengthenProfileHref}
-            source="profile-strengthen"
-          >
-            Strengthen my profile
-          </TransitionLink>
           <TransitionLink
             className="application-success__profile-secondary"
             direction="back"
@@ -521,6 +514,14 @@ function ProfileCompletionCard({
             source="success-back-to-job"
           >
             Back to job
+          </TransitionLink>
+          {/* Prototype-safe destination until the full candidate profile route exists. */}
+          <TransitionLink
+            className="button button--job-primary application-success__profile-primary"
+            href={strengthenProfileHref}
+            source="profile-strengthen"
+          >
+            <span>Strengthen my profile</span>
           </TransitionLink>
         </div>
       </div>

@@ -32,7 +32,8 @@ const APPLICATION_ROUTE_ORDER: Record<AppRoute["kind"], number> = {
   "application-personal-details": 4,
   "application-role-questions": 5,
   "application-career-history": 6,
-  "application-confirm": 7
+  "application-confirm": 7,
+  "candidate-profile": 8
 };
 
 export function getApplicationRouteKey(route: AppRoute): string {

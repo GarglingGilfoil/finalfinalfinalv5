@@ -3,6 +3,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { TransitionLink } from "../components/application/TransitionLink";
+import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import type {
   ApplicationQualifier,
@@ -140,19 +141,6 @@ function validateRoleQuestions(
   }, {});
 }
 
-function getCompanyMonogram(companyName: string): string {
-  const words = companyName
-    .split(/\s+/)
-    .map((word) => word.trim())
-    .filter(Boolean);
-
-  if (words.length >= 2) {
-    return `${words[0]?.charAt(0) ?? ""}${words[1]?.charAt(0) ?? ""}`.toUpperCase();
-  }
-
-  return (words[0]?.slice(0, 2) || "DJ").toUpperCase();
-}
-
 function LoadingState(): JSX.Element {
   return (
     <div className="job-view__shell">
@@ -258,33 +246,6 @@ function MissingPersonalDetailsState({ job }: { job: JobViewData }): JSX.Element
           </div>
         </section>
       </ApplicationStepShell>
-    </div>
-  );
-}
-
-function RoleQuestionsContext({ job }: { job: JobViewData }): JSX.Element {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const showLogo = Boolean(job.companyLogoUrl) && !logoFailed;
-
-  return (
-    <div className="role-questions-card__context" aria-label={`Questions for ${job.title} at ${job.companyName}`}>
-      <span className="role-questions-card__logo" aria-label={showLogo ? undefined : job.companyName}>
-        {showLogo ? (
-          <img
-            alt={`${job.companyName} logo`}
-            onError={() => {
-              setLogoFailed(true);
-            }}
-            src={job.companyLogoUrl ?? undefined}
-          />
-        ) : (
-          getCompanyMonogram(job.companyName)
-        )}
-      </span>
-      <span className="role-questions-card__context-copy">
-        <span>{job.companyName}</span>
-        <strong>{job.title}</strong>
-      </span>
     </div>
   );
 }
@@ -758,7 +719,7 @@ function ReadyState({
             </p>
           </header>
 
-          <RoleQuestionsContext job={job} />
+          <CompanyApplicationHeading job={job} session={session} />
 
           <div className="resume-upload-card__body role-questions-card__body">
             <form

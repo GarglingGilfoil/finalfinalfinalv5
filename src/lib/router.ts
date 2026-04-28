@@ -49,6 +49,11 @@ export interface ApplicationConfirmRoute {
   jobId: string;
 }
 
+export interface CandidateProfileRoute {
+  kind: "candidate-profile";
+  jobId: string;
+}
+
 export type AppRoute =
   | JobViewRoute
   | ApplicationAuthRoute
@@ -57,7 +62,8 @@ export type AppRoute =
   | ApplicationRoleQuestionsRoute
   | ApplicationPersonalDetailsRoute
   | ApplicationCareerHistoryRoute
-  | ApplicationConfirmRoute;
+  | ApplicationConfirmRoute
+  | CandidateProfileRoute;
 
 const REFERENCE_JOB_ID = "196794136";
 const APP_ROUTE_CHANGE_EVENT = "ditto-jobs:route-change";
@@ -116,6 +122,10 @@ export function buildApplicationConfirmPath(jobId: string): string {
   return `/jobs/${jobId}/apply/confirm`;
 }
 
+export function buildCandidateProfilePath(): string {
+  return "/profile";
+}
+
 export function navigateTo<TPayload = Record<string, unknown>>(
   path: string,
   options: NavigateOptions<TPayload> = {}
@@ -157,6 +167,13 @@ export function subscribeToRouteChanges(onChange: () => void): () => void {
 
 export function resolveRoute(location: Pick<Location, "pathname" | "search">): AppRoute {
   const trimmedPath = location.pathname.replace(/\/+$/, "") || "/";
+
+  if (trimmedPath === "/profile") {
+    return {
+      kind: "candidate-profile",
+      jobId: REFERENCE_JOB_ID
+    };
+  }
 
   const authMatch = trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/auth$/);
   if (authMatch?.[1]) {

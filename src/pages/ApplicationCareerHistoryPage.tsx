@@ -694,6 +694,19 @@ function getSelectFieldOptions(children: ReactNode): SelectFieldOption[] {
     });
 }
 
+function resizeCompactTextArea(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = "auto";
+
+  const computedStyle = window.getComputedStyle(textarea);
+  const maxHeight = Number.parseFloat(computedStyle.maxHeight);
+  const cappedHeight = Number.isFinite(maxHeight) && maxHeight > 0
+    ? Math.min(textarea.scrollHeight, maxHeight)
+    : textarea.scrollHeight;
+
+  textarea.style.height = `${cappedHeight}px`;
+  textarea.style.overflowY = Number.isFinite(maxHeight) && textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
 function getNextEnabledOptionIndex(
   options: SelectFieldOption[],
   currentIndex: number,
@@ -718,6 +731,7 @@ function SelectField({
   children,
   disabled,
   error,
+  hideEmptyOption = false,
   id,
   label,
   onChange,
@@ -728,6 +742,7 @@ function SelectField({
   children: ReactNode;
   disabled?: boolean;
   error?: string;
+  hideEmptyOption?: boolean;
   id: string;
   label: string;
   onChange: (value: string) => void;
@@ -742,20 +757,24 @@ function SelectField({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const options = useMemo(() => getSelectFieldOptions(children), [children]);
+  const listboxOptions = useMemo(
+    () => (hideEmptyOption ? options.filter((option) => option.value !== "") : options),
+    [hideEmptyOption, options]
+  );
   const [query, setQuery] = useState("");
   const filteredOptions = useMemo(() => {
     if (!searchable) {
-      return options;
+      return listboxOptions;
     }
 
     const normalizedQuery = query.trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return options;
+      return listboxOptions;
     }
 
-    return options.filter((option) => option.label.toLowerCase().includes(normalizedQuery));
-  }, [options, query, searchable]);
+    return listboxOptions.filter((option) => option.label.toLowerCase().includes(normalizedQuery));
+  }, [listboxOptions, query, searchable]);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : null;
   const filteredSelectedIndex = filteredOptions.findIndex((option) => option.value === value);
@@ -1305,16 +1324,27 @@ function TextAreaField({
   placeholder?: string;
   value: string;
 }): JSX.Element {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      resizeCompactTextArea(textareaRef.current);
+    }
+  }, [value]);
+
   return (
     <label className={["auth-field", className].filter(Boolean).join(" ")}>
       <span className="auth-field__label">{label}</span>
       <textarea
-        className="auth-field__input career-review-textarea"
+        className="auth-field__input career-review-textarea career-review-textarea--compact-autogrow"
         id={id}
         onChange={(event) => {
           onChange(event.target.value);
+          resizeCompactTextArea(event.currentTarget);
         }}
         placeholder={placeholder}
+        ref={textareaRef}
+        rows={2}
         value={value}
       />
     </label>
@@ -1632,6 +1662,7 @@ function CareerItem({
                     <div className="career-review-date-pair">
                       <SelectField
                         error={errors?.startMonth}
+                        hideEmptyOption
                         id={getCareerFieldId(entry.id, "startMonth")}
                         label="Month"
                         onChange={(value) => {
@@ -1650,6 +1681,7 @@ function CareerItem({
 
                       <SelectField
                         error={errors?.startYear}
+                        hideEmptyOption
                         id={getCareerFieldId(entry.id, "startYear")}
                         label="Year"
                         onChange={(value) => {
@@ -1693,6 +1725,7 @@ function CareerItem({
                       <SelectField
                         disabled={editorEntry.isCurrent}
                         error={errors?.endMonth}
+                        hideEmptyOption
                         id={getCareerFieldId(entry.id, "endMonth")}
                         label="Month"
                         onChange={(value) => {
@@ -1712,6 +1745,7 @@ function CareerItem({
                       <SelectField
                         disabled={editorEntry.isCurrent}
                         error={errors?.endYear}
+                        hideEmptyOption
                         id={getCareerFieldId(entry.id, "endYear")}
                         label="Year"
                         onChange={(value) => {
@@ -2038,6 +2072,7 @@ function EducationItem({
                   <div className="career-review-date-pair career-review-date-pair--years">
                     <SelectField
                       error={errors?.startYear}
+                      hideEmptyOption
                       id={getEducationFieldId(entry.id, "startYear")}
                       label="From"
                       onChange={(value) => {
@@ -2056,6 +2091,7 @@ function EducationItem({
 
                     <SelectField
                       error={errors?.endYear}
+                      hideEmptyOption
                       id={getEducationFieldId(entry.id, "endYear")}
                       label="To"
                       onChange={(value) => {
@@ -2147,6 +2183,481 @@ function EducationItem({
         </div>
       ) : null}
     </article>
+  );
+}
+
+export function CareerEducationReviewList({
+  careerEntries,
+  defaultCareerCountryCode = null,
+  educationEntries,
+  onChange
+}: {
+  careerEntries: PrototypeCareerEntry[];
+  defaultCareerCountryCode?: string | null;
+  educationEntries: PrototypeEducationEntry[];
+  onChange: (nextState: {
+    careerEntries: PrototypeCareerEntry[];
+    educationEntries: PrototypeEducationEntry[];
+  }) => void;
+}): JSX.Element {
+  const [openCareerId, setOpenCareerId] = useState<string | null>(careerEntries[0]?.id ?? null);
+  const [openEducationId, setOpenEducationId] = useState<string | null>(null);
+  const [careerDrafts, setCareerDrafts] = useState<Record<string, PrototypeCareerEntry>>({});
+  const [educationDrafts, setEducationDrafts] = useState<Record<string, PrototypeEducationEntry>>({});
+  const [newCareerIds, setNewCareerIds] = useState<string[]>([]);
+  const [newEducationIds, setNewEducationIds] = useState<string[]>([]);
+  const [careerErrors, setCareerErrors] = useState<Record<string, CareerEntryErrors>>({});
+  const [educationErrors, setEducationErrors] = useState<Record<string, EducationEntryErrors>>({});
+  const [pendingRemoveKey, setPendingRemoveKey] = useState<string | null>(null);
+  const careerAddRef = useRef<HTMLButtonElement | null>(null);
+  const educationAddRef = useRef<HTMLButtonElement | null>(null);
+
+  const updateCareerEntries = (
+    updater: (entries: PrototypeCareerEntry[]) => PrototypeCareerEntry[]
+  ): void => {
+    onChange({
+      careerEntries: updater(careerEntries),
+      educationEntries
+    });
+  };
+
+  const updateEducationEntries = (
+    updater: (entries: PrototypeEducationEntry[]) => PrototypeEducationEntry[]
+  ): void => {
+    onChange({
+      careerEntries,
+      educationEntries: updater(educationEntries)
+    });
+  };
+
+  const focusCareerField = (entryId: string, field: keyof CareerEntryErrors): void => {
+    window.setTimeout(() => {
+      document.getElementById(getCareerFieldId(entryId, field))?.focus();
+    }, 0);
+  };
+
+  const focusEducationField = (entryId: string, field: keyof EducationEntryErrors): void => {
+    window.setTimeout(() => {
+      document.getElementById(getEducationFieldId(entryId, field))?.focus();
+    }, 0);
+  };
+
+  const handleCareerDraftChange = (
+    entryId: string,
+    field: keyof PrototypeCareerEntry,
+    value: CandidateLocationValue | boolean | string | null
+  ): void => {
+    setCareerDrafts((current) => {
+      const existingDraft = current[entryId] ?? careerEntries.find((entry) => entry.id === entryId);
+
+      if (!existingDraft) {
+        return current;
+      }
+
+      const nextEntry: PrototypeCareerEntry = {
+        ...existingDraft,
+        [field]: value,
+        source: "manual"
+      };
+
+      if (field === "isCurrent" && value === true) {
+        nextEntry.endMonth = "";
+        nextEntry.endYear = "";
+      }
+
+      return {
+        ...current,
+        [entryId]: nextEntry
+      };
+    });
+    setCareerErrors((current) => ({
+      ...current,
+      [entryId]: {}
+    }));
+  };
+
+  const handleEducationDraftChange = (
+    entryId: string,
+    field: keyof PrototypeEducationEntry,
+    value: string
+  ): void => {
+    setEducationDrafts((current) => {
+      const existingDraft = current[entryId] ?? educationEntries.find((entry) => entry.id === entryId);
+
+      if (!existingDraft) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [entryId]: {
+          ...existingDraft,
+          [field]: value,
+          source: "manual"
+        }
+      };
+    });
+    setEducationErrors((current) => ({
+      ...current,
+      [entryId]: {}
+    }));
+  };
+
+  const beginCareerEdit = (entry: PrototypeCareerEntry): void => {
+    setOpenCareerId(entry.id);
+    setPendingRemoveKey(null);
+    setCareerDrafts((current) => ({
+      ...current,
+      [entry.id]: { ...entry }
+    }));
+    focusCareerField(entry.id, "jobTitle");
+  };
+
+  const beginEducationEdit = (entry: PrototypeEducationEntry): void => {
+    setOpenEducationId(entry.id);
+    setPendingRemoveKey(null);
+    setEducationDrafts((current) => ({
+      ...current,
+      [entry.id]: { ...entry }
+    }));
+    focusEducationField(entry.id, "institution");
+  };
+
+  const cancelCareerEdit = (entryId: string): void => {
+    setCareerDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setCareerErrors((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+
+    if (newCareerIds.includes(entryId)) {
+      updateCareerEntries((entries) => entries.filter((entry) => entry.id !== entryId));
+      setNewCareerIds((current) => current.filter((id) => id !== entryId));
+      setOpenCareerId(null);
+      window.setTimeout(() => {
+        careerAddRef.current?.focus();
+      }, 0);
+      return;
+    }
+
+    window.setTimeout(() => {
+      document.getElementById(`career-header-${entryId}`)?.focus();
+    }, 0);
+  };
+
+  const cancelEducationEdit = (entryId: string): void => {
+    setEducationDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setEducationErrors((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+
+    if (newEducationIds.includes(entryId)) {
+      updateEducationEntries((entries) => entries.filter((entry) => entry.id !== entryId));
+      setNewEducationIds((current) => current.filter((id) => id !== entryId));
+      setOpenEducationId(null);
+      window.setTimeout(() => {
+        educationAddRef.current?.focus();
+      }, 0);
+      return;
+    }
+
+    window.setTimeout(() => {
+      document.getElementById(`education-header-${entryId}`)?.focus();
+    }, 0);
+  };
+
+  const saveCareerDraft = (entryId: string): void => {
+    const draft = careerDrafts[entryId];
+
+    if (!draft) {
+      return;
+    }
+
+    const nextErrors = validateCareerEntry(draft);
+    setCareerErrors((current) => ({
+      ...current,
+      [entryId]: nextErrors
+    }));
+
+    if (hasErrors(nextErrors)) {
+      const firstField = getFirstCareerErrorField(nextErrors);
+      if (firstField) {
+        focusCareerField(entryId, firstField);
+      }
+      return;
+    }
+
+    updateCareerEntries((entries) =>
+      entries.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...draft,
+              source: "manual"
+            }
+          : entry
+      )
+    );
+    setCareerDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setNewCareerIds((current) => current.filter((id) => id !== entryId));
+    window.setTimeout(() => {
+      document.getElementById(`career-header-${entryId}`)?.focus();
+    }, 0);
+  };
+
+  const saveEducationDraft = (entryId: string): void => {
+    const draft = educationDrafts[entryId];
+
+    if (!draft) {
+      return;
+    }
+
+    const nextErrors = validateEducationEntry(draft);
+    setEducationErrors((current) => ({
+      ...current,
+      [entryId]: nextErrors
+    }));
+
+    if (hasErrors(nextErrors)) {
+      const firstField = getFirstEducationErrorField(nextErrors);
+      if (firstField) {
+        focusEducationField(entryId, firstField);
+      }
+      return;
+    }
+
+    updateEducationEntries((entries) =>
+      entries.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...draft,
+              source: "manual"
+            }
+          : entry
+      )
+    );
+    setEducationDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setNewEducationIds((current) => current.filter((id) => id !== entryId));
+    window.setTimeout(() => {
+      document.getElementById(`education-header-${entryId}`)?.focus();
+    }, 0);
+  };
+
+  const addCareerEntry = (): void => {
+    const entry = createEmptyCareerEntry();
+    updateCareerEntries((entries) => [...entries, entry]);
+    setCareerDrafts((current) => ({
+      ...current,
+      [entry.id]: { ...entry }
+    }));
+    setNewCareerIds((current) => [...current, entry.id]);
+    setOpenCareerId(entry.id);
+    window.setTimeout(() => {
+      document.getElementById(getCareerFieldId(entry.id, "jobTitle"))?.focus();
+    }, 0);
+  };
+
+  const addEducationEntry = (): void => {
+    const entry = createEmptyEducationEntry();
+    updateEducationEntries((entries) => [...entries, entry]);
+    setEducationDrafts((current) => ({
+      ...current,
+      [entry.id]: { ...entry }
+    }));
+    setNewEducationIds((current) => [...current, entry.id]);
+    setOpenEducationId(entry.id);
+    window.setTimeout(() => {
+      document.getElementById(getEducationFieldId(entry.id, "institution"))?.focus();
+    }, 0);
+  };
+
+  const removeCareerEntry = (entryId: string): void => {
+    const nextEntry = careerEntries.find((entry) => entry.id !== entryId) ?? null;
+    updateCareerEntries((entries) => entries.filter((entry) => entry.id !== entryId));
+    setCareerDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setCareerErrors((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setNewCareerIds((current) => current.filter((id) => id !== entryId));
+    setPendingRemoveKey(null);
+    setOpenCareerId(nextEntry?.id ?? null);
+    window.setTimeout(() => {
+      if (nextEntry) {
+        document.getElementById(`career-header-${nextEntry.id}`)?.focus();
+        return;
+      }
+      careerAddRef.current?.focus();
+    }, 0);
+  };
+
+  const removeEducationEntry = (entryId: string): void => {
+    const nextEntry = educationEntries.find((entry) => entry.id !== entryId) ?? null;
+    updateEducationEntries((entries) => entries.filter((entry) => entry.id !== entryId));
+    setEducationDrafts((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setEducationErrors((current) => {
+      const { [entryId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setNewEducationIds((current) => current.filter((id) => id !== entryId));
+    setPendingRemoveKey(null);
+    setOpenEducationId(nextEntry?.id ?? null);
+    window.setTimeout(() => {
+      if (nextEntry) {
+        document.getElementById(`education-header-${nextEntry.id}`)?.focus();
+        return;
+      }
+      educationAddRef.current?.focus();
+    }, 0);
+  };
+
+  return (
+    <div className="career-history-card__body career-history-card__body--embedded">
+      <section className="career-review-section" aria-labelledby="profile-career-review-career-title">
+        <div className="career-review-section__header">
+          <div>
+            <p className="section-kicker">Experience</p>
+            <h2 id="profile-career-review-career-title">Career</h2>
+          </div>
+          <button
+            aria-label="Add career role"
+            className="button button--ghost career-review-section__add-button"
+            onClick={addCareerEntry}
+            ref={careerAddRef}
+            type="button"
+          >
+            <Plus aria-hidden="true" className="career-review-section__add-icon" />
+          </button>
+        </div>
+
+        <div className="career-review-list">
+          {careerEntries.length > 0 ? (
+            careerEntries.map((entry) => (
+              <CareerItem
+                defaultCountryCode={defaultCareerCountryCode}
+                draft={careerDrafts[entry.id] ?? entry}
+                entry={entry}
+                errors={careerErrors[entry.id]}
+                isEditing={Boolean(careerDrafts[entry.id])}
+                isOpen={openCareerId === entry.id}
+                isPendingRemove={pendingRemoveKey === `career:${entry.id}`}
+                key={entry.id}
+                onCancel={() => {
+                  cancelCareerEdit(entry.id);
+                }}
+                onConfirmRemove={() => {
+                  removeCareerEntry(entry.id);
+                }}
+                onDraftChange={(field, value) => {
+                  handleCareerDraftChange(entry.id, field, value);
+                }}
+                onEdit={() => {
+                  beginCareerEdit(entry);
+                }}
+                onRemove={() => {
+                  setPendingRemoveKey((current) =>
+                    current === `career:${entry.id}` ? null : `career:${entry.id}`
+                  );
+                }}
+                onSave={() => {
+                  saveCareerDraft(entry.id);
+                }}
+                onToggle={() => {
+                  setOpenCareerId((current) => (current === entry.id ? null : entry.id));
+                }}
+              />
+            ))
+          ) : (
+            <EmptySection
+              actionLabel="Add role"
+              description="No career roles are listed yet. Add one if you want it included in your profile."
+              onAdd={addCareerEntry}
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="career-review-section" aria-labelledby="profile-career-review-education-title">
+        <div className="career-review-section__header">
+          <div>
+            <p className="section-kicker">Education</p>
+            <h2 id="profile-career-review-education-title">Qualifications</h2>
+          </div>
+          <button
+            aria-label="Add education item"
+            className="button button--ghost career-review-section__add-button"
+            onClick={addEducationEntry}
+            ref={educationAddRef}
+            type="button"
+          >
+            <Plus aria-hidden="true" className="career-review-section__add-icon" />
+          </button>
+        </div>
+
+        <div className="career-review-list">
+          {educationEntries.length > 0 ? (
+            educationEntries.map((entry) => (
+              <EducationItem
+                draft={educationDrafts[entry.id] ?? entry}
+                entry={entry}
+                errors={educationErrors[entry.id]}
+                isEditing={Boolean(educationDrafts[entry.id])}
+                isOpen={openEducationId === entry.id}
+                isPendingRemove={pendingRemoveKey === `education:${entry.id}`}
+                key={entry.id}
+                onCancel={() => {
+                  cancelEducationEdit(entry.id);
+                }}
+                onConfirmRemove={() => {
+                  removeEducationEntry(entry.id);
+                }}
+                onDraftChange={(field, value) => {
+                  handleEducationDraftChange(entry.id, field, value);
+                }}
+                onEdit={() => {
+                  beginEducationEdit(entry);
+                }}
+                onRemove={() => {
+                  setPendingRemoveKey((current) =>
+                    current === `education:${entry.id}` ? null : `education:${entry.id}`
+                  );
+                }}
+                onSave={() => {
+                  saveEducationDraft(entry.id);
+                }}
+                onToggle={() => {
+                  setOpenEducationId((current) => (current === entry.id ? null : entry.id));
+                }}
+              />
+            ))
+          ) : (
+            <EmptySection
+              actionLabel="Add education"
+              description="No education items are listed yet. Add one if it should appear in your profile."
+              onAdd={addEducationEntry}
+            />
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
