@@ -1,3 +1,4 @@
+import { TransitionLink } from "./application/TransitionLink";
 import { buildApplicationAuthPath, buildJobViewPath } from "../lib/router";
 
 interface PageChromeHeaderProps {
@@ -8,21 +9,34 @@ export function PageChromeHeader({ jobId }: PageChromeHeaderProps): JSX.Element 
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <a className="site-header__brand" href={buildJobViewPath(jobId)}>
+        <TransitionLink
+          className="site-header__brand"
+          direction="back"
+          href={buildJobViewPath(jobId)}
+          source="header-brand"
+        >
           <img
             alt="Ditto Jobs"
             className="site-header__wordmark"
             src="/brand/ditto-wordmark.svg"
           />
-        </a>
+        </TransitionLink>
 
         <nav aria-label="Account actions" className="site-header__actions">
-          <a className="button button--ghost" href={buildApplicationAuthPath(jobId, "signin")}>
+          <TransitionLink
+            className="button button--ghost"
+            href={buildApplicationAuthPath(jobId, "signin")}
+            source="header-signin"
+          >
             Log in
-          </a>
-          <a className="button button--primary" href={buildApplicationAuthPath(jobId, "signup")}>
+          </TransitionLink>
+          <TransitionLink
+            className="button button--primary"
+            href={buildApplicationAuthPath(jobId, "signup")}
+            source="header-signup"
+          >
             Sign up
-          </a>
+          </TransitionLink>
         </nav>
       </div>
     </header>

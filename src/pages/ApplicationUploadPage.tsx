@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import {
   ResumeUploadGuardCard,
   ResumeUploadSection
 } from "../components/ResumeUploadSection";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import type {
   CandidateResumeState,
   CandidateSession,
@@ -78,6 +79,7 @@ function ReadyState({
   session: CandidateSession | null;
 }): JSX.Element {
   const [resumeState, setResumeState] = useState<CandidateResumeState>(initialResumeState);
+  const { transitionTo } = useApplicationRouteTransition();
 
   useEffect(() => {
     setResumeState(initialResumeState);
@@ -99,7 +101,10 @@ function ReadyState({
     };
 
     updateResumeState(nextState);
-    window.location.assign(buildApplicationParsingPath(job.id));
+    transitionTo(buildApplicationParsingPath(job.id), {
+      direction: "forward",
+      source: "resume-upload-complete"
+    });
   };
 
   return (
@@ -119,8 +124,9 @@ function ReadyState({
 }
 
 export function ApplicationUploadPage({ jobId }: ApplicationUploadPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [resumeState, setResumeState] = useState<CandidateResumeState>({
     resumes: [],
@@ -129,9 +135,10 @@ export function ApplicationUploadPage({ jobId }: ApplicationUploadPageProps): JS
 
   useEffect(() => {
     let cancelled = false;
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
 
     const prototypeSession = readPrototypeSession();
     setSession(prototypeSession);

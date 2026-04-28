@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, RotateCw } from "lucide-react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationLocationField } from "../components/ApplicationLocationField";
 import {
   ApplicationPhoneField,
@@ -9,7 +9,9 @@ import {
 } from "../components/ApplicationPhoneField";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
+import { TransitionLink } from "../components/application/TransitionLink";
 import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import type {
   CandidatePersonalDetailsState,
   CandidateProfilePictureValue,
@@ -30,10 +32,10 @@ import {
 } from "../lib/location-detection";
 import {
   buildApplicationAuthPath,
-  buildApplicationCareerHistoryPath,
+  buildApplicationParsingPath,
+  buildApplicationRoleQuestionsPath,
   buildApplicationUploadPath,
   buildJobViewPath,
-  navigateTo,
   readNavigationState
 } from "../lib/router";
 
@@ -46,7 +48,8 @@ type ArrivalState = "arriving" | "settled";
 
 interface PersonalDetailsHandoffPayload {
   transitionAt?: string;
-  transitionSource?: "parsing-skip" | "parsing-complete" | "direct-entry";
+  transitionSource?: "parsing-skip" | "parsing-complete" | "direct-entry" | string;
+  transitionVariant?: string;
 }
 
 interface ValidationState {
@@ -243,12 +246,21 @@ function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
             Sign in before you add your details for {job.title} at {job.companyName}.
           </p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationAuthPath(job.id, "signin")}>
+            <TransitionLink
+              className="button button--job-primary"
+              href={buildApplicationAuthPath(job.id, "signin")}
+              source="guard-recovery"
+            >
               Go to application sign in
-            </a>
-            <a className="button button--ghost" href={buildJobViewPath(job.id)}>
+            </TransitionLink>
+            <TransitionLink
+              className="button button--ghost"
+              direction="back"
+              href={buildJobViewPath(job.id)}
+              source="guard-recovery"
+            >
               Back to job view
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -264,9 +276,14 @@ function MissingResumeState({ job }: { job: JobViewData }): JSX.Element {
           <h1>Resume required</h1>
           <p className="muted-copy">Upload a resume before you add your personal details for {job.title}.</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationUploadPath(job.id)}>
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={buildApplicationUploadPath(job.id)}
+              source="guard-recovery"
+            >
               Back to resume upload
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -532,6 +549,7 @@ function ReadyState({
   const formId = useId();
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const locationInputRef = useRef<HTMLInputElement | null>(null);
+  const { transitionTo } = useApplicationRouteTransition();
   const candidateName = useMemo(() => buildCandidateName(session), [session]);
   const candidateInitials = useMemo(() => buildCandidateInitials(session), [session]);
   const selectedResume = useMemo(() => getSelectedResume(resumeState), [resumeState]);
@@ -550,11 +568,18 @@ function ReadyState({
     () => findParsedLocationHint(parsingLoaderModel.extractedSignals),
     [parsingLoaderModel.extractedSignals]
   );
+  const completionStartedFrom =
+    handoffState?.payload?.transitionSource === "parsing-skip" ||
+    handoffState?.payload?.transitionSource === "parsing-complete"
+      ? handoffState.payload.transitionSource
+      : "direct-entry";
   const [detailsState, setDetailsState] = useState<CandidatePersonalDetailsState | null>(null);
   const [validation, setValidation] = useState<ValidationState>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [arrivalState, setArrivalState] = useState<ArrivalState>(() =>
-    handoffState?.payload?.transitionSource === "parsing-skip" && !prefersReducedMotion
+    handoffState?.payload?.transitionSource === "parsing-skip" &&
+    !handoffState?.payload?.transitionVariant &&
+    !prefersReducedMotion
       ? "arriving"
       : "settled"
   );
@@ -575,7 +600,7 @@ function ReadyState({
       existingState && existingState.sourceResumeId === selectedResume.id
         ? existingState
         : buildPrototypePersonalDetailsState({
-            completionStartedFrom: handoffState?.payload?.transitionSource ?? "direct-entry",
+            completionStartedFrom,
             detectedCountryCode: detectedLocation.detectedCountry.country.code,
             detectedCountrySource: detectedLocation.detectedCountry.source,
             jobId: job.id,
@@ -586,7 +611,13 @@ function ReadyState({
     setDetailsState(nextState);
     setValidation({});
     setSubmitAttempted(false);
-  }, [handoffState, job.id, parsingLoaderModel.extractedSignals, selectedResume, session]);
+  }, [
+    completionStartedFrom,
+    job.id,
+    parsingLoaderModel.extractedSignals,
+    selectedResume,
+    session
+  ]);
 
   useEffect(() => {
     if (!session || !detailsState) {
@@ -673,11 +704,9 @@ function ReadyState({
 
     setDetailsState(completedState);
     savePrototypePersonalDetailsState(session, job.id, completedState);
-    navigateTo(buildApplicationCareerHistoryPath(job.id), {
-      payload: {
-        transitionAt: new Date().toISOString(),
-        transitionSource: "direct-entry"
-      }
+    transitionTo(buildApplicationRoleQuestionsPath(job.id), {
+      direction: "forward",
+      source: "personal-details-complete"
     });
   };
 
@@ -815,6 +844,14 @@ function ReadyState({
 
           <footer className="resume-upload-card__footer personal-details-card__footer">
             <div className="resume-upload-card__footer-actions personal-details-card__footer-actions">
+              <TransitionLink
+                className="button button--ghost"
+                direction="back"
+                href={buildApplicationParsingPath(job.id)}
+                source="personal-details-back"
+              >
+                Back
+              </TransitionLink>
               <button className="button button--job-primary" form={formId} type="submit">
                 Continue
               </button>
@@ -829,17 +866,19 @@ function ReadyState({
 export function ApplicationPersonalDetailsPage({
   jobId
 }: ApplicationPersonalDetailsPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [resumeState, setResumeState] = useState<CandidateResumeState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const prototypeSession = readPrototypeSession();
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
     setSession(prototypeSession);
     setResumeState(prototypeSession ? readPrototypeResumeState(prototypeSession.email) : null);
 

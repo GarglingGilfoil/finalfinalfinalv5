@@ -29,6 +29,11 @@ export interface ApplicationParsingRoute {
   jobId: string;
 }
 
+export interface ApplicationRoleQuestionsRoute {
+  kind: "application-role-questions";
+  jobId: string;
+}
+
 export interface ApplicationPersonalDetailsRoute {
   kind: "application-personal-details";
   jobId: string;
@@ -49,6 +54,7 @@ export type AppRoute =
   | ApplicationAuthRoute
   | ApplicationUploadRoute
   | ApplicationParsingRoute
+  | ApplicationRoleQuestionsRoute
   | ApplicationPersonalDetailsRoute
   | ApplicationCareerHistoryRoute
   | ApplicationConfirmRoute;
@@ -92,6 +98,10 @@ export function buildApplicationUploadPath(jobId: string): string {
 
 export function buildApplicationParsingPath(jobId: string): string {
   return `/jobs/${jobId}/apply/parsing`;
+}
+
+export function buildApplicationRoleQuestionsPath(jobId: string): string {
+  return `/jobs/${jobId}/apply/role-questions`;
 }
 
 export function buildApplicationPersonalDetailsPath(jobId: string): string {
@@ -170,6 +180,14 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     return {
       kind: "application-parsing",
       jobId: parsingMatch[1]
+    };
+  }
+
+  const roleQuestionsMatch = trimmedPath.match(/^\/jobs\/([^/]+)\/apply\/role-questions$/);
+  if (roleQuestionsMatch?.[1]) {
+    return {
+      kind: "application-role-questions",
+      jobId: roleQuestionsMatch[1]
     };
   }
 

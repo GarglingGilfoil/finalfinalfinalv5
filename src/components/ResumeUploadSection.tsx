@@ -21,6 +21,7 @@ import {
   readPrototypeResumeAsset,
   savePrototypeResumeAsset
 } from "../lib/prototype-resume-assets";
+import { TransitionLink } from "./application/TransitionLink";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const FILE_ACCEPT =
@@ -421,12 +422,21 @@ export function ResumeUploadGuardCard({
       <footer className="resume-upload-card__footer">
         <div className="resume-upload-card__footer-rule" aria-hidden="true" />
         <div className="resume-upload-card__footer-actions resume-upload-card__footer-actions--guard">
-          <a className="button button--job-primary" href={authHref}>
+          <TransitionLink
+            className="button button--job-primary"
+            href={authHref}
+            source="guard-recovery"
+          >
             Go to application sign in
-          </a>
-          <a className="button button--ghost" href={backHref}>
+          </TransitionLink>
+          <TransitionLink
+            className="button button--ghost"
+            direction="back"
+            href={backHref}
+            source="upload-back-to-job"
+          >
             Back to job view
-          </a>
+          </TransitionLink>
         </div>
       </footer>
     </section>
@@ -1135,9 +1145,14 @@ export function ResumeUploadSection({
       <footer className="resume-upload-card__footer">
         <div className="resume-upload-card__footer-rule" aria-hidden="true" />
         <div className="resume-upload-card__footer-actions">
-          <a className="button button--ghost" href={backHref}>
+          <TransitionLink
+            className="button button--ghost"
+            direction="back"
+            href={backHref}
+            source="upload-back-to-job"
+          >
             Back
-          </a>
+          </TransitionLink>
           <button
             className="button button--job-primary"
             disabled={!canContinue}

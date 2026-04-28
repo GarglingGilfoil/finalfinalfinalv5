@@ -27,6 +27,31 @@ export interface CandidateResumeState {
   selectedResumeId: string | null;
 }
 
+export type ApplicationQualifierInputType = "yes_no" | "number";
+
+export interface ApplicationQualifier {
+  id: string;
+  label: string;
+  inputType: ApplicationQualifierInputType;
+  required: boolean;
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+}
+
+export interface CandidateRoleQuestionsState {
+  version: 1;
+  jobId?: string;
+  sourceResumeId: string | null;
+  status: "draft" | "complete";
+  answers: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+  lastSavedAt?: string | null;
+}
+
 export type PrototypeReviewEntrySource = "parsed" | "manual";
 
 export type PrototypeCareerLevel =

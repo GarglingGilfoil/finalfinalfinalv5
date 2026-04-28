@@ -309,6 +309,11 @@ function OverflowChipList({
 
           {hiddenCount > 0 ? (
             <button
+              aria-label={
+                isOpen
+                  ? `Hide additional ${title.toLowerCase()}`
+                  : `Show ${hiddenCount} more ${title.toLowerCase()}`
+              }
               aria-controls={overflowId}
               aria-expanded={isOpen}
               aria-haspopup={isMobile ? undefined : "dialog"}
@@ -479,13 +484,14 @@ export function CompanySummary({ className, job }: CompanySummaryProps): JSX.Ele
 
         {canExpand ? (
           <button
+            aria-expanded={isExpanded}
             className="company-summary__read-more"
             onClick={() => {
               setIsExpanded((current) => !current);
             }}
             type="button"
           >
-            {isExpanded ? "Show Less" : "Read More"}
+            {isExpanded ? "Show less" : "Read more"}
           </button>
         ) : null}
       </div>

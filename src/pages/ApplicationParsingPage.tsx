@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { CvParsingSignalLoader } from "../components/CvParsingSignalLoader";
+import { TransitionLink } from "../components/application/TransitionLink";
 import type { CandidateResumeState, CandidateSession } from "../contracts/application";
 import type { JobViewData } from "../contracts/job-view";
 import { buildMockCvParsingSignalLoaderModel } from "../lib/mock-cv-parsing-signals";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import { readPrototypeSession } from "../lib/prototype-auth";
 import { readPrototypeResumeState } from "../lib/prototype-resume";
 import {
   buildApplicationAuthPath,
   buildApplicationPersonalDetailsPath,
   buildApplicationUploadPath,
-  buildJobViewPath,
-  navigateTo
+  buildJobViewPath
 } from "../lib/router";
 
 interface ApplicationParsingPageProps {
@@ -95,12 +96,21 @@ function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
           <h1>Continue your application</h1>
           <p className="muted-copy">Sign in before we build your profile for {job.title}.</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationAuthPath(job.id, "signin")}>
+            <TransitionLink
+              className="button button--job-primary"
+              href={buildApplicationAuthPath(job.id, "signin")}
+              source="guard-recovery"
+            >
               Go to application sign in
-            </a>
-            <a className="button button--ghost" href={buildJobViewPath(job.id)}>
+            </TransitionLink>
+            <TransitionLink
+              className="button button--ghost"
+              direction="back"
+              href={buildJobViewPath(job.id)}
+              source="guard-recovery"
+            >
               Back to job view
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -116,9 +126,14 @@ function MissingResumeState({ job }: { job: JobViewData }): JSX.Element {
           <h1>Resume required</h1>
           <p className="muted-copy">Upload a resume before we build your profile for {job.title}.</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationUploadPath(job.id)}>
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={buildApplicationUploadPath(job.id)}
+              source="guard-recovery"
+            >
               Back to resume upload
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -149,6 +164,7 @@ function ReadyState({
   );
   const [skipTransitionState, setSkipTransitionState] = useState<SkipTransitionState>("idle");
   const handoffTimeoutRef = useRef<number | null>(null);
+  const { transitionTo } = useApplicationRouteTransition();
 
   useEffect(() => {
     return () => {
@@ -176,11 +192,10 @@ function ReadyState({
 
     const handoffDelay = prefersReducedMotion ? 120 : 560;
     handoffTimeoutRef.current = window.setTimeout(() => {
-      navigateTo(buildApplicationPersonalDetailsPath(job.id), {
-        payload: {
-          transitionAt: new Date().toISOString(),
-          transitionSource: "parsing-skip"
-        }
+      transitionTo(buildApplicationPersonalDetailsPath(job.id), {
+        direction: "forward",
+        source: "parsing-skip",
+        variant: "handoff"
       });
     }, handoffDelay);
   };
@@ -211,17 +226,19 @@ function ReadyState({
 }
 
 export function ApplicationParsingPage({ jobId }: ApplicationParsingPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [resumeState, setResumeState] = useState<CandidateResumeState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const prototypeSession = readPrototypeSession();
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
     setSession(prototypeSession);
     setResumeState(prototypeSession ? readPrototypeResumeState(prototypeSession.email) : null);
 

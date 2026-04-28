@@ -9,11 +9,13 @@ import {
   type ReactNode
 } from "react";
 import { Check, ChevronDown, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ApplicationLocationField } from "../components/ApplicationLocationField";
+import { TransitionLink } from "../components/application/TransitionLink";
 import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import type {
   CandidateCareerHistoryState,
   CandidateLocationValue,
@@ -35,12 +37,16 @@ import {
 import { readPrototypePersonalDetailsState } from "../lib/prototype-personal-details";
 import { readPrototypeResumeState } from "../lib/prototype-resume";
 import {
+  isPrototypeRoleQuestionsComplete,
+  readPrototypeRoleQuestionsState
+} from "../lib/prototype-role-questions";
+import {
   buildApplicationAuthPath,
   buildApplicationConfirmPath,
   buildApplicationPersonalDetailsPath,
+  buildApplicationRoleQuestionsPath,
   buildApplicationUploadPath,
-  buildJobViewPath,
-  navigateTo
+  buildJobViewPath
 } from "../lib/router";
 
 interface ApplicationCareerHistoryPageProps {
@@ -531,12 +537,21 @@ function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
           <h1>Continue your application</h1>
           <p className="muted-copy">Sign in before you review your profile for {job.title}.</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationAuthPath(job.id, "signin")}>
+            <TransitionLink
+              className="button button--job-primary"
+              href={buildApplicationAuthPath(job.id, "signin")}
+              source="guard-recovery"
+            >
               Go to application sign in
-            </a>
-            <a className="button button--ghost" href={buildJobViewPath(job.id)}>
+            </TransitionLink>
+            <TransitionLink
+              className="button button--ghost"
+              direction="back"
+              href={buildJobViewPath(job.id)}
+              source="guard-recovery"
+            >
               Back to job view
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -552,9 +567,49 @@ function MissingResumeState({ job }: { job: JobViewData }): JSX.Element {
           <h1>Resume required</h1>
           <p className="muted-copy">Upload a resume before you review your career and education for {job.title}.</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationUploadPath(job.id)}>
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={buildApplicationUploadPath(job.id)}
+              source="guard-recovery"
+            >
               Back to resume upload
-            </a>
+            </TransitionLink>
+          </div>
+        </section>
+      </ApplicationStepShell>
+    </div>
+  );
+}
+
+function RoleQuestionsRedirectState({ job }: { job: JobViewData }): JSX.Element {
+  const { transitionTo } = useApplicationRouteTransition();
+
+  useEffect(() => {
+    transitionTo(buildApplicationRoleQuestionsPath(job.id), {
+      direction: "back",
+      replace: true,
+      source: "guard-recovery"
+    });
+  }, [job.id, transitionTo]);
+
+  return (
+    <div className="job-view__shell">
+      <ApplicationStepShell>
+        <section className="application-step__panel application-step__guard surface-card surface-card--section">
+          <h1>Role questions needed</h1>
+          <p className="muted-copy">
+            Answer the role questions before you review your career and education for {job.title}.
+          </p>
+          <div className="application-step__guard-actions">
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={buildApplicationRoleQuestionsPath(job.id)}
+              source="guard-recovery"
+            >
+              Go to role questions
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -572,9 +627,14 @@ function MissingPersonalDetailsState({ job }: { job: JobViewData }): JSX.Element
             Add your location details before you review your career and education for {job.title}.
           </p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationPersonalDetailsPath(job.id)}>
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={buildApplicationPersonalDetailsPath(job.id)}
+              source="guard-recovery"
+            >
               Go to personal details
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -2099,6 +2159,7 @@ function ReadyState({
   resumeState: CandidateResumeState | null;
   session: CandidateSession | null;
 }): JSX.Element {
+  const { transitionTo } = useApplicationRouteTransition();
   const selectedResume = useMemo(
     () =>
       resumeState?.resumes.find((resume) => resume.id === resumeState.selectedResumeId) ??
@@ -2108,6 +2169,10 @@ function ReadyState({
   );
   const personalDetailsState = useMemo<CandidatePersonalDetailsState | null>(
     () => (session ? readPrototypePersonalDetailsState(session, job.id) : null),
+    [job.id, session]
+  );
+  const roleQuestionsState = useMemo(
+    () => (session ? readPrototypeRoleQuestionsState(session, job.id) : null),
     [job.id, session]
   );
 
@@ -2160,6 +2225,10 @@ function ReadyState({
 
   if (personalDetailsState?.status !== "complete") {
     return <MissingPersonalDetailsState job={job} />;
+  }
+
+  if (!isPrototypeRoleQuestionsComplete(roleQuestionsState, selectedResume.id)) {
+    return <RoleQuestionsRedirectState job={job} />;
   }
 
   if (!historyState) {
@@ -2624,11 +2693,10 @@ function ReadyState({
       return;
     }
 
-    navigateTo(buildApplicationConfirmPath(job.id), {
-      payload: {
-        transitionAt: new Date().toISOString(),
-        transitionSource: "career-education-review"
-      }
+    transitionTo(buildApplicationConfirmPath(job.id), {
+      direction: "forward",
+      source: "career-review-complete",
+      variant: "success"
     });
   };
 
@@ -2808,9 +2876,14 @@ function ReadyState({
 
           <footer className="resume-upload-card__footer career-history-card__footer">
             <div className="career-history-card__footer-row">
-              <a className="button button--ghost" href={buildApplicationPersonalDetailsPath(job.id)}>
+              <TransitionLink
+                className="button button--ghost"
+                direction="back"
+                href={buildApplicationRoleQuestionsPath(job.id)}
+                source="career-review-back"
+              >
                 Back
-              </a>
+              </TransitionLink>
               <button className="button button--job-primary" onClick={handleContinue} type="button">
                 Finish Application
               </button>
@@ -2825,17 +2898,19 @@ function ReadyState({
 export function ApplicationCareerHistoryPage({
   jobId
 }: ApplicationCareerHistoryPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [resumeState, setResumeState] = useState<CandidateResumeState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const prototypeSession = readPrototypeSession();
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
     setSession(prototypeSession);
     setResumeState(prototypeSession ? readPrototypeResumeState(prototypeSession.email) : null);
 

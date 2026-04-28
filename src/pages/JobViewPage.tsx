@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import {
   CompanySummary,
   FactGrid,
   RecommendedJobsSection,
   TokenGroup
 } from "../components/JobCards";
+import { TransitionLink } from "../components/application/TransitionLink";
 import { JobBodySections } from "../components/JobBodySections";
 import type { JobViewData } from "../contracts/job-view";
 import {
@@ -81,6 +82,26 @@ function MissingState(): JSX.Element {
   );
 }
 
+function CompanyLogoBadge({
+  className,
+  companyInitial,
+  job
+}: {
+  className?: string;
+  companyInitial: string;
+  job: JobViewData;
+}): JSX.Element {
+  return (
+    <div className={["job-sheet__logo-badge", className].filter(Boolean).join(" ")}>
+      {job.companyLogoUrl ? (
+        <img alt={`${job.companyName} logo`} src={job.companyLogoUrl} />
+      ) : (
+        <span className="job-sheet__logo-fallback">{companyInitial}</span>
+      )}
+    </div>
+  );
+}
+
 function JobMasthead({
   action,
   companyInitial,
@@ -100,13 +121,7 @@ function JobMasthead({
         .join(" ")}
     >
       <div className="job-sheet__masthead">
-        <div className="job-sheet__logo-badge">
-          {job.companyLogoUrl ? (
-            <img alt={`${job.companyName} logo`} src={job.companyLogoUrl} />
-          ) : (
-            <span className="job-sheet__logo-fallback">{companyInitial}</span>
-          )}
-        </div>
+        <CompanyLogoBadge companyInitial={companyInitial} job={job} />
 
         <div className="job-sheet__masthead-content">
           <h1>{job.title}</h1>
@@ -382,9 +397,13 @@ function ReadyState({
   }, [activeLayout, activeMotion, isMobile, job.id]);
 
   const primaryApplyAction = (
-    <a className="button button--job-primary job-sheet__primary-apply" href={applyHref}>
+    <TransitionLink
+      className="button button--job-primary job-sheet__primary-apply"
+      href={applyHref}
+      source="job-apply"
+    >
       Apply Now
-    </a>
+    </TransitionLink>
   );
 
   const blocks: LayoutBlocks = {
@@ -405,9 +424,9 @@ function ReadyState({
     primaryApplyAction,
     bottomApplyAction: (
       <div className="job-sheet__footer-actions">
-        <a className="button button--job-primary" href={applyHref}>
+        <TransitionLink className="button button--job-primary" href={applyHref} source="job-apply">
           Apply Now
-        </a>
+        </TransitionLink>
       </div>
     )
   };
@@ -438,14 +457,16 @@ export function JobViewPage({
   initialMotion,
   jobId
 }: JobViewPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = useMemo(() => readJobView(jobId), [jobId]);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
 
   useEffect(() => {
     let cancelled = false;
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
 
     getJobView(jobId).then((result) => {
       if (cancelled) {

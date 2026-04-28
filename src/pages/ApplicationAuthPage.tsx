@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import { buildPrototypeSession, savePrototypeSession } from "../lib/prototype-auth";
 import {
   buildApplicationAuthPath,
@@ -64,6 +65,7 @@ function ReadyState({
   jobId: string;
 }): JSX.Element {
   const [mode, setMode] = useState<ApplicationAuthMode>(initialMode);
+  const { transitionTo } = useApplicationRouteTransition();
 
   useEffect(() => {
     setMode(initialMode);
@@ -95,7 +97,10 @@ function ReadyState({
   const handleAuthSuccess = async (input: AuthSuccessInput): Promise<void> => {
     const session = buildPrototypeSession(input);
     savePrototypeSession(session);
-    window.location.assign(buildApplicationUploadPath(jobId));
+    transitionTo(buildApplicationUploadPath(jobId), {
+      direction: "forward",
+      source: "auth-complete"
+    });
   };
 
   return (
@@ -129,14 +134,16 @@ export function ApplicationAuthPage({
   initialMode,
   jobId
 }: ApplicationAuthPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
 
   useEffect(() => {
     let cancelled = false;
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
 
     getJobView(jobId).then((result) => {
       if (cancelled) {

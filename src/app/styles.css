@@ -70,6 +70,179 @@ select {
   padding-top: var(--header-height);
 }
 
+.application-route-transition {
+  --route-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --route-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - var(--header-height));
+}
+
+.application-route-transition__content {
+  position: relative;
+  z-index: 1;
+  transform-origin: 50% 28%;
+  will-change: opacity, transform, filter;
+}
+
+.application-route-transition__wash {
+  position: fixed;
+  inset: var(--header-height) 0 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.16) 38%,
+      rgba(24, 181, 255, 0.07) 49%,
+      rgba(255, 255, 255, 0.1) 58%,
+      transparent 74%
+    );
+  transform: translateX(-18%);
+  will-change: opacity, transform;
+}
+
+.application-route-transition[data-phase="exiting"][data-variant="standard"]
+  .application-route-transition__wash,
+.application-route-transition[data-phase="exiting"][data-variant="success"]
+  .application-route-transition__wash {
+  animation: applicationRouteWash 220ms var(--route-snap) both;
+}
+
+.application-route-transition[data-phase="exiting"][data-direction="forward"]
+  .application-route-transition__content,
+.application-route-transition[data-phase="exiting"][data-variant="success"]
+  .application-route-transition__content {
+  animation: applicationRouteExitForward 170ms var(--route-snap) both;
+}
+
+.application-route-transition[data-phase="entering"][data-direction="forward"]
+  .application-route-transition__content,
+.application-route-transition[data-phase="entering"][data-variant="handoff"]
+  .application-route-transition__content {
+  animation: applicationRouteEnterForward 260ms var(--route-ease) both;
+}
+
+.application-route-transition[data-phase="exiting"][data-direction="back"]
+  .application-route-transition__content {
+  animation: applicationRouteExitBack 150ms var(--route-snap) both;
+}
+
+.application-route-transition[data-phase="entering"][data-direction="back"]
+  .application-route-transition__content {
+  animation: applicationRouteEnterBack 220ms var(--route-ease) both;
+}
+
+.application-route-transition[data-phase="exiting"][data-direction="neutral"]
+  .application-route-transition__content {
+  animation: applicationRouteExitNeutral 90ms ease both;
+}
+
+.application-route-transition[data-phase="entering"][data-direction="neutral"]
+  .application-route-transition__content,
+.application-route-transition[data-phase="entering"][data-variant="success"]
+  .application-route-transition__content {
+  animation: applicationRouteEnterNeutral 120ms ease both;
+}
+
+@keyframes applicationRouteWash {
+  0% {
+    opacity: 0;
+    transform: translateX(-18%);
+  }
+
+  38% {
+    opacity: 0.24;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(18%);
+  }
+}
+
+@keyframes applicationRouteExitForward {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.996);
+    filter: blur(1.5px);
+  }
+}
+
+@keyframes applicationRouteEnterForward {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.996);
+    filter: blur(2px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes applicationRouteExitBack {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.998);
+    filter: blur(1.5px);
+  }
+}
+
+@keyframes applicationRouteEnterBack {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.998);
+    filter: blur(2px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes applicationRouteExitNeutral {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    filter: blur(1px);
+  }
+}
+
+@keyframes applicationRouteEnterNeutral {
+  0% {
+    opacity: 0;
+    filter: blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 .site-header {
   position: fixed;
   inset: 0 0 auto;
@@ -1056,6 +1229,339 @@ select {
   gap: 1.1rem;
 }
 
+.job-sheet--hig {
+  overflow: visible;
+  border-color: rgba(15, 20, 29, 0.055);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(24, 181, 255, 0.08), transparent 28rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 254, 0.94));
+  box-shadow: 0 24px 60px -52px rgba(8, 26, 46, 0.26);
+}
+
+.job-sheet--hig::before {
+  opacity: 0.72;
+}
+
+.job-sheet__hig-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13.5rem, 16.5rem);
+  gap: clamp(1.4rem, 4vw, 3rem);
+  align-items: end;
+  padding: clamp(2.1rem, 4vw, 3rem) clamp(2.2rem, 4.5vw, 3.25rem) 1.65rem;
+}
+
+.job-sheet__hig-lockup {
+  min-width: 0;
+}
+
+.job-sheet__hig-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.88rem;
+  margin-bottom: clamp(1.25rem, 2.6vw, 1.9rem);
+}
+
+.job-sheet__logo-badge--hig {
+  flex: 0 0 4.75rem;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-color: rgba(15, 20, 29, 0.055);
+  border-radius: 1.12rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 252, 0.92)),
+    radial-gradient(circle at top left, rgba(24, 181, 255, 0.12), transparent 58%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 14px 30px -26px rgba(8, 26, 46, 0.35);
+}
+
+.job-sheet__hig-company-copy {
+  min-width: 0;
+}
+
+.job-sheet__hig-company,
+.job-sheet__hig-location {
+  margin: 0;
+}
+
+.job-sheet__hig-company {
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.job-sheet__hig-location {
+  margin-top: 0.16rem;
+  color: rgba(77, 89, 107, 0.86);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.job-sheet__hig-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  width: fit-content;
+  margin: 0 0 0.72rem;
+  color: var(--brand-4);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.job-sheet__hig-status span {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: #23a56f;
+  box-shadow: 0 0 0 0.28rem rgba(35, 165, 111, 0.12);
+}
+
+.job-sheet__hig-hero h1 {
+  max-width: 15ch;
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(2.45rem, 5.8vw, 4.65rem);
+  line-height: 0.94;
+  letter-spacing: -0.07em;
+  text-wrap: balance;
+}
+
+.job-sheet__hig-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.78rem;
+  align-self: end;
+  padding-left: 1.05rem;
+  border-left: 1px solid rgba(15, 20, 29, 0.08);
+}
+
+.job-sheet__hig-action .job-sheet__primary-apply {
+  width: 100%;
+}
+
+.job-sheet__hig-action p {
+  max-width: 15.5rem;
+  margin: 0;
+  color: rgba(77, 89, 107, 0.84);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.job-sheet__hig-brand-asset {
+  position: relative;
+  height: clamp(7rem, 14vw, 9.7rem);
+  margin: 0 clamp(2.2rem, 4.5vw, 3.25rem) 1.45rem;
+  overflow: hidden;
+  border: 1px solid rgba(15, 20, 29, 0.055);
+  border-radius: 1.18rem;
+  background:
+    linear-gradient(135deg, rgba(232, 238, 245, 0.88), rgba(247, 250, 253, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(24, 181, 255, 0.11), transparent 46%);
+}
+
+.job-sheet__hig-brand-asset img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.74;
+  filter: saturate(0.88) contrast(0.96);
+}
+
+.job-sheet__hig-brand-asset span {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(248, 251, 254, 0.84), rgba(248, 251, 254, 0.16) 42%, rgba(248, 251, 254, 0.6)),
+    linear-gradient(180deg, rgba(15, 20, 29, 0.08), rgba(255, 255, 255, 0.04));
+}
+
+.job-sheet__hig-metadata {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.8rem 1.1rem;
+  margin: 0 0 1.7rem;
+  padding: 0.95rem clamp(2.2rem, 4.5vw, 3.25rem);
+  border-width: 1px 0;
+  border-style: solid;
+  border-color: rgba(15, 20, 29, 0.08);
+  border-radius: 0;
+  background: transparent;
+}
+
+.job-sheet__hig-fact {
+  padding: 0;
+  border-left: 0;
+}
+
+.job-sheet__hig-fact dt {
+  margin: 0 0 0.34rem;
+  color: rgba(77, 89, 107, 0.72);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.job-sheet__hig-fact dd {
+  margin: 0;
+  color: rgba(15, 20, 29, 0.92);
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.28;
+}
+
+.job-sheet__hig-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.42fr);
+  gap: clamp(2rem, 4vw, 3rem);
+  align-items: start;
+  padding: 0 clamp(2.2rem, 4.5vw, 3.25rem) 2.45rem;
+}
+
+.job-sheet__hig-article,
+.job-sheet__hig-side {
+  min-width: 0;
+}
+
+.job-sheet__hig-article .job-article {
+  max-width: 44rem;
+}
+
+.job-sheet__hig-article .rich-text {
+  color: rgba(38, 48, 62, 0.82);
+  font-size: 1rem;
+  line-height: 1.78;
+}
+
+.job-sheet__hig-article .rich-text h2 {
+  margin-top: 2rem;
+  font-size: 1.34rem;
+  letter-spacing: -0.035em;
+}
+
+.job-sheet__hig-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.job-sheet__hig-signals {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(15, 20, 29, 0.08);
+}
+
+.job-sheet__hig-signals .section-kicker,
+.job-sheet--hig .company-summary__label {
+  color: rgba(77, 89, 107, 0.78);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.job-sheet__hig-signals .taxonomy-group {
+  grid-template-columns: 1fr;
+  gap: 0.95rem;
+  margin-top: 0.72rem;
+}
+
+.job-sheet__hig-signals .taxonomy-group__row {
+  gap: 0.42rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.job-sheet__hig-signals .taxonomy-group__title {
+  color: rgba(15, 20, 29, 0.78);
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.job-sheet__hig-signals .taxonomy-chip,
+.job-sheet__hig-signals .taxonomy-overflow__chip {
+  min-height: 1.76rem;
+  padding: 0.26rem 0.56rem;
+  border-color: rgba(15, 20, 29, 0.065);
+  border-radius: 999px;
+  background: rgba(15, 20, 29, 0.045);
+  color: rgba(38, 48, 62, 0.82);
+  font-size: 0.77rem;
+  font-weight: 550;
+}
+
+.job-sheet__hig-signals .taxonomy-chip--overflow {
+  background: rgba(8, 94, 139, 0.065);
+  color: var(--brand-4);
+  font-weight: 650;
+}
+
+.job-sheet__hig-signals .taxonomy-overflow {
+  border-color: rgba(15, 20, 29, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.job-sheet--hig .job-sheet__company-summary.company-summary {
+  padding: 1.05rem 0 0;
+  border: 0;
+  border-top: 1px solid rgba(15, 20, 29, 0.08);
+  border-radius: 0;
+  background: transparent;
+}
+
+.job-sheet--hig .company-summary__text {
+  color: rgba(77, 89, 107, 0.88);
+  font-size: 0.9rem;
+  line-height: 1.62;
+}
+
+.job-sheet__hig-closing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.4rem;
+  margin: 0 clamp(2.2rem, 4.5vw, 3.25rem) 2.45rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(24, 181, 255, 0.12);
+  border-radius: 1.18rem;
+  background:
+    radial-gradient(circle at top left, rgba(24, 181, 255, 0.12), transparent 48%),
+    rgba(255, 255, 255, 0.72);
+}
+
+.job-sheet__hig-closing h2,
+.job-sheet__hig-closing p {
+  margin: 0;
+}
+
+.job-sheet__hig-closing h2 {
+  margin-top: 0.26rem;
+  color: var(--ink);
+  font-size: clamp(1.24rem, 2vw, 1.58rem);
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+
+.job-sheet__hig-closing p:not(.section-kicker) {
+  margin-top: 0.32rem;
+  max-width: 31rem;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.job-sheet__hig-closing .button {
+  flex: 0 0 auto;
+  min-width: 11.5rem;
+}
+
 .job-sheet__mobile-primary-action,
 .job-sheet__mobile-facts,
 .job-sheet__mobile-taxonomy {
@@ -1068,6 +1574,12 @@ select {
 
 .job-sheet--motion-arrival .job-sheet__header,
 .job-sheet--motion-arrival .job-sheet__summary-card,
+.job-sheet--motion-arrival .job-sheet__hig-hero,
+.job-sheet--motion-arrival .job-sheet__hig-brand-asset,
+.job-sheet--motion-arrival .job-sheet__hig-metadata,
+.job-sheet--motion-arrival .job-sheet__hig-article,
+.job-sheet--motion-arrival .job-sheet__hig-side,
+.job-sheet--motion-arrival .job-sheet__hig-closing,
 .job-sheet--motion-drift .button--job-primary,
 .job-sheet--motion-arrival .button--job-primary {
   will-change: transform, opacity;
@@ -1130,6 +1642,12 @@ select {
 
 .job-sheet--motion-arrival .job-sheet__header,
 .job-sheet--motion-arrival .job-sheet__summary-card,
+.job-sheet--motion-arrival .job-sheet__hig-hero,
+.job-sheet--motion-arrival .job-sheet__hig-brand-asset,
+.job-sheet--motion-arrival .job-sheet__hig-metadata,
+.job-sheet--motion-arrival .job-sheet__hig-article,
+.job-sheet--motion-arrival .job-sheet__hig-side,
+.job-sheet--motion-arrival .job-sheet__hig-closing,
 .job-sheet--motion-arrival .job-sheet__article-column,
 .job-sheet--motion-arrival .job-sheet__companion-column,
 .job-sheet--motion-arrival .job-sheet__action-rail,
@@ -1144,6 +1662,12 @@ select {
 
 .job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__header,
 .job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__summary-card,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-hero,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-brand-asset,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-metadata,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-article,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-side,
+.job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__hig-closing,
 .job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__article-column,
 .job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__companion-column,
 .job-sheet--motion-arrival.job-sheet--motion-ready .job-sheet__action-rail,
@@ -1174,10 +1698,21 @@ select {
 }
 
 .job-sheet--motion-arrival .job-sheet__article-column,
+.job-sheet--motion-arrival .job-sheet__hig-article,
+.job-sheet--motion-arrival .job-sheet__hig-side,
+.job-sheet--motion-arrival .job-sheet__hig-closing,
 .job-sheet--motion-arrival .job-sheet__companion-column,
 .job-sheet--motion-arrival .job-sheet__action-rail,
 .job-sheet--motion-arrival .job-sheet__footer-actions {
   transition-delay: 190ms;
+}
+
+.job-sheet--motion-arrival .job-sheet__hig-brand-asset {
+  transition-delay: 110ms;
+}
+
+.job-sheet--motion-arrival .job-sheet__hig-metadata {
+  transition-delay: 160ms;
 }
 
 .application-auth {
@@ -3271,44 +3806,48 @@ select {
 }
 
 .application-success__profile-card {
-  display: block;
-  padding: clamp(1.25rem, 3vw, 1.78rem) clamp(1.3rem, 3.6vw, 2.15rem);
-  border-color: rgba(15, 20, 29, 0.028);
-  border-radius: 1.35rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15.5rem, 0.72fr);
+  gap: clamp(1.35rem, 4vw, 2.4rem);
+  align-items: center;
+  min-height: 16rem;
+  padding: clamp(1.35rem, 3.4vw, 2.2rem);
+  border-color: rgba(15, 20, 29, 0.038);
+  border-radius: 1.55rem;
   background:
-    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.038), transparent 32%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(248, 251, 253, 0.58));
+    radial-gradient(circle at 8% 0%, rgba(24, 181, 255, 0.07), transparent 36%),
+    radial-gradient(circle at 94% 18%, rgba(255, 255, 255, 0.92), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(248, 251, 253, 0.62));
   box-shadow:
-    0 22px 58px -56px rgba(15, 20, 29, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+    0 28px 68px -58px rgba(15, 20, 29, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
   animation-delay: 1040ms;
 }
 
 .application-success__profile-card::before {
   content: "";
   position: absolute;
-  left: clamp(1rem, 2.6vw, 1.4rem);
-  top: clamp(1.15rem, 2.8vw, 1.6rem);
-  bottom: clamp(1.15rem, 2.8vw, 1.6rem);
-  width: 2px;
+  inset: auto auto clamp(1.1rem, 3vw, 1.5rem) clamp(1.35rem, 3.4vw, 2.2rem);
+  width: min(9rem, 26vw);
+  height: 2px;
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(24, 181, 255, 0.32), rgba(8, 94, 139, 0.08));
+    linear-gradient(90deg, rgba(24, 181, 255, 0.3), rgba(8, 94, 139, 0));
   pointer-events: none;
 }
 
 .application-success__profile-copy,
-.application-success__profile-actions {
+.application-success__profile-actions,
+.application-success__profile-proof {
   position: relative;
   z-index: 1;
 }
 
 .application-success__profile-copy {
   display: flex;
-  max-width: 60ch;
+  max-width: 34rem;
   flex-direction: column;
-  gap: 0.42rem;
-  padding-left: clamp(0.75rem, 2vw, 1rem);
+  gap: 0.5rem;
 }
 
 .application-success__profile-copy h2,
@@ -3318,17 +3857,17 @@ select {
 
 .application-success__profile-copy h2 {
   color: var(--ink);
-  font-size: clamp(1.34rem, 2.5vw, 1.72rem);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.48rem, 3vw, 2.08rem);
+  line-height: 1.04;
+  letter-spacing: -0.052em;
   text-wrap: balance;
 }
 
 .application-success__profile-copy p:not(.section-kicker) {
-  max-width: 58ch;
+  max-width: 54ch;
   color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.58;
+  font-size: 0.94rem;
+  line-height: 1.62;
 }
 
 .application-success__profile-copy p:nth-of-type(2) {
@@ -3338,14 +3877,243 @@ select {
 .application-success__profile-actions {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  margin-top: 0.92rem;
+  gap: 0.78rem;
+  margin-top: 1.05rem;
   min-width: 0;
 }
 
 .application-success__profile-actions .button {
+  min-width: min(100%, 15.8rem);
   justify-content: center;
+  padding-right: 1.34rem;
+  padding-left: 1.34rem;
   white-space: nowrap;
+}
+
+.application-success__profile-proof {
+  display: grid;
+  min-height: 12.8rem;
+  place-items: center;
+}
+
+.application-success__profile-proof-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 18.8rem);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.96rem;
+  padding: 1.2rem 1.1rem 1.1rem;
+  border: 1px solid rgba(8, 94, 139, 0.085);
+  border-radius: 1.18rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.98), transparent 42%),
+    radial-gradient(circle at 100% 16%, rgba(24, 181, 255, 0.11), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.91), rgba(244, 249, 252, 0.82));
+  box-shadow:
+    0 26px 52px -42px rgba(8, 53, 79, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.application-success__profile-proof-card::after {
+  content: "";
+  position: absolute;
+  inset: 0.7rem;
+  z-index: -1;
+  border-radius: 0.92rem;
+  background:
+    linear-gradient(90deg, transparent 0 22%, rgba(24, 181, 255, 0.075) 22% 23%, transparent 23% 100%),
+    linear-gradient(180deg, transparent 0 28%, rgba(15, 20, 29, 0.035) 28% 29%, transparent 29% 100%);
+  opacity: 0.7;
+}
+
+.application-success__profile-proof-header {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: center;
+}
+
+.application-success__profile-proof-avatar {
+  display: grid;
+  width: 4.95rem;
+  height: 4.95rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(8, 94, 139, 0.1);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.96), transparent 44%),
+    linear-gradient(180deg, rgba(232, 247, 255, 0.95), rgba(213, 236, 248, 0.82));
+  color: rgba(8, 53, 79, 0.9);
+  font-size: 1.36rem;
+  font-weight: 820;
+  letter-spacing: -0.04em;
+  box-shadow:
+    0 20px 38px -32px rgba(8, 53, 79, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.application-success__profile-proof-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.application-success__profile-proof-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
+}
+
+.application-success__profile-proof-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.application-success__profile-proof-title span:first-child {
+  color: var(--ink);
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.application-success__profile-proof-composition {
+  position: relative;
+  width: 100%;
+  min-height: 7.4rem;
+  overflow: hidden;
+  border: 1px solid rgba(24, 181, 255, 0.075);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.9), transparent 34%),
+    radial-gradient(circle at 88% 20%, rgba(24, 181, 255, 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(236, 247, 253, 0.54), rgba(255, 255, 255, 0.48));
+}
+
+.application-success__profile-proof-composition::before,
+.application-success__profile-proof-composition::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.application-success__profile-proof-composition::before {
+  top: 0.78rem;
+  right: 0.9rem;
+  width: 3.2rem;
+  height: 3.2rem;
+  border: 1px solid rgba(24, 181, 255, 0.12);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.application-success__profile-proof-composition::after {
+  bottom: -1.35rem;
+  left: -1rem;
+  width: 5.8rem;
+  height: 5.8rem;
+  background:
+    radial-gradient(circle, rgba(24, 181, 255, 0.1), transparent 68%);
+}
+
+.application-success__profile-proof-ring,
+.application-success__profile-proof-line,
+.application-success__profile-proof-dot,
+.application-success__profile-proof-row {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.application-success__profile-proof-ring {
+  top: 0.92rem;
+  left: 0.98rem;
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 1px solid rgba(8, 94, 139, 0.11);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.9), transparent 46%),
+    rgba(24, 181, 255, 0.055);
+}
+
+.application-success__profile-proof-line {
+  left: 4.25rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(15, 20, 29, 0.08);
+}
+
+.application-success__profile-proof-line--one {
+  top: 1.2rem;
+  width: 6.4rem;
+}
+
+.application-success__profile-proof-line--two {
+  top: 2.05rem;
+  width: 4.5rem;
+  background: rgba(24, 181, 255, 0.13);
+}
+
+.application-success__profile-proof-line--three {
+  top: 2.9rem;
+  width: 5.35rem;
+  background: rgba(15, 20, 29, 0.055);
+}
+
+.application-success__profile-proof-dot {
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 999px;
+  background: rgba(24, 181, 255, 0.34);
+  box-shadow: 0 0 0 0.22rem rgba(24, 181, 255, 0.08);
+}
+
+.application-success__profile-proof-dot--one {
+  top: 1.3rem;
+  right: 1.1rem;
+}
+
+.application-success__profile-proof-dot--two {
+  top: 3.8rem;
+  left: 1.35rem;
+  background: rgba(8, 94, 139, 0.22);
+}
+
+.application-success__profile-proof-dot--three {
+  right: 2.15rem;
+  bottom: 1.3rem;
+  background: rgba(15, 20, 29, 0.15);
+}
+
+.application-success__profile-proof-row {
+  right: 1rem;
+  left: 1rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(15, 20, 29, 0.09), rgba(24, 181, 255, 0.14), rgba(15, 20, 29, 0.045));
+}
+
+.application-success__profile-proof-row--wide {
+  bottom: 2.8rem;
+}
+
+.application-success__profile-proof-row--medium {
+  right: 4.2rem;
+  bottom: 1.9rem;
+}
+
+.application-success__profile-proof-row--short {
+  right: 7rem;
+  bottom: 1rem;
 }
 
 .application-success__profile-secondary {
@@ -3760,10 +4528,27 @@ select {
     max-width: 44rem;
   }
 
+  .application-success__profile-card {
+    grid-template-columns: 1fr;
+    gap: 1.35rem;
+  }
+
+  .application-success__profile-copy {
+    max-width: none;
+  }
+
   .application-success__profile-actions {
     width: 100%;
     min-width: 0;
     flex-direction: row;
+  }
+
+  .application-success__profile-proof {
+    min-height: 12rem;
+  }
+
+  .application-success__profile-proof-card {
+    width: min(100%, 21rem);
   }
 }
 
@@ -3795,10 +4580,37 @@ select {
     line-height: 1.06;
   }
 
+  .application-success__profile-card {
+    gap: 1.15rem;
+    min-height: 0;
+    padding: 1.05rem;
+    border-radius: 1.2rem;
+  }
+
+  .application-success__profile-card::before {
+    right: 1.05rem;
+    bottom: 1rem;
+    left: 1.05rem;
+    width: auto;
+  }
+
+  .application-success__profile-copy {
+    gap: 0.46rem;
+  }
+
+  .application-success__profile-copy h2 {
+    font-size: clamp(1.36rem, 7vw, 1.72rem);
+  }
+
+  .application-success__profile-copy p:not(.section-kicker) {
+    font-size: 0.88rem;
+  }
+
   .application-success__profile-actions {
     align-items: stretch;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.54rem;
+    margin-top: 0.78rem;
   }
 
   .application-success__profile-actions .button {
@@ -3807,6 +4619,20 @@ select {
 
   .application-success__profile-secondary {
     width: 100%;
+  }
+
+  .application-success__profile-proof {
+    min-height: 11.4rem;
+  }
+
+  .application-success__profile-proof-card {
+    width: 100%;
+    gap: 0.84rem;
+    padding: 0.84rem;
+  }
+
+  .application-success__profile-proof-composition {
+    min-height: 6.9rem;
   }
 }
 
@@ -4364,6 +5190,37 @@ select {
     justify-content: flex-start;
   }
 
+  .job-sheet__hig-hero {
+    grid-template-columns: 1fr;
+    gap: 1.35rem;
+    align-items: start;
+  }
+
+  .job-sheet__hig-action {
+    width: min(100%, 22rem);
+    padding: 1rem 0 0;
+    border-top: 1px solid rgba(15, 20, 29, 0.08);
+    border-left: 0;
+  }
+
+  .job-sheet__hig-metadata {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .job-sheet__hig-body {
+    grid-template-columns: 1fr;
+  }
+
+  .job-sheet__hig-side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.35rem;
+  }
+
+  .job-sheet__hig-closing {
+    align-items: flex-start;
+  }
+
   .recommended-jobs__grid {
     grid-template-columns: 1fr;
   }
@@ -4608,6 +5465,79 @@ select {
 
   .taxonomy-chip {
     max-width: min(100%, 12rem);
+  }
+
+  .job-sheet__hig-hero {
+    padding: 1.45rem 1.25rem 1.15rem;
+  }
+
+  .job-sheet__hig-identity {
+    gap: 0.78rem;
+    margin-bottom: 1.15rem;
+  }
+
+  .job-sheet__logo-badge--hig {
+    flex-basis: 4.4rem;
+    width: 4.4rem;
+    height: 4.4rem;
+  }
+
+  .job-sheet__hig-hero h1 {
+    max-width: 17ch;
+    font-size: clamp(1.8rem, 8vw, 2.55rem);
+    line-height: 0.98;
+    letter-spacing: -0.06em;
+  }
+
+  .job-sheet__hig-action {
+    width: 100%;
+  }
+
+  .job-sheet__hig-action .job-sheet__primary-apply {
+    width: 100%;
+  }
+
+  .job-sheet__hig-action p {
+    max-width: 26rem;
+    font-size: 0.86rem;
+  }
+
+  .job-sheet__hig-brand-asset {
+    height: clamp(5.8rem, 22vw, 7.4rem);
+    margin: 0 1.25rem 1.15rem;
+    border-radius: 1rem;
+  }
+
+  .job-sheet__hig-metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem 1rem;
+    padding: 0.9rem 1.25rem;
+  }
+
+  .job-sheet__hig-body {
+    gap: 1.65rem;
+    padding: 0 1.25rem 1.65rem;
+  }
+
+  .job-sheet__hig-side {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+
+  .job-sheet__hig-article .rich-text {
+    font-size: 0.96rem;
+    line-height: 1.72;
+  }
+
+  .job-sheet__hig-closing {
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0 1.25rem 1.6rem;
+    padding: 1.05rem;
+  }
+
+  .job-sheet__hig-closing .button {
+    width: 100%;
   }
 
   .application-context__logo-button {
@@ -4900,6 +5830,45 @@ select {
   .job-sheet__footer-actions .button {
     width: min(100%, 11rem);
   }
+
+  .job-sheet__hig-hero {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .job-sheet__logo-badge--hig {
+    flex-basis: 4rem;
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .job-sheet__hig-company {
+    font-size: 0.96rem;
+  }
+
+  .job-sheet__hig-location {
+    font-size: 0.86rem;
+  }
+
+  .job-sheet__hig-brand-asset {
+    margin-right: 1rem;
+    margin-left: 1rem;
+  }
+
+  .job-sheet__hig-metadata,
+  .job-sheet__hig-body {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .job-sheet__hig-metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .job-sheet__hig-closing {
+    margin-right: 1rem;
+    margin-left: 1rem;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4923,6 +5892,12 @@ select {
 
   .job-sheet--motion-arrival .job-sheet__header,
   .job-sheet--motion-arrival .job-sheet__summary-card,
+  .job-sheet--motion-arrival .job-sheet__hig-hero,
+  .job-sheet--motion-arrival .job-sheet__hig-brand-asset,
+  .job-sheet--motion-arrival .job-sheet__hig-metadata,
+  .job-sheet--motion-arrival .job-sheet__hig-article,
+  .job-sheet--motion-arrival .job-sheet__hig-side,
+  .job-sheet--motion-arrival .job-sheet__hig-closing,
   .job-sheet--motion-arrival .job-sheet__article-column,
   .job-sheet--motion-arrival .job-sheet__companion-column,
   .job-sheet--motion-arrival .job-sheet__action-rail,
@@ -9722,6 +10697,246 @@ select {
   align-items: start;
 }
 
+.role-questions-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  gap: 1.18rem;
+  border-color: rgba(15, 20, 29, 0.06);
+  box-shadow:
+    0 28px 60px -44px rgba(15, 20, 29, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition:
+    opacity 420ms ease,
+    transform 620ms cubic-bezier(0.18, 0.84, 0.24, 1),
+    filter 420ms ease;
+}
+
+.role-questions-card::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -0.8rem;
+  width: min(100%, 27rem);
+  height: 12rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(244, 251, 255, 0.92) 0%,
+    rgba(220, 243, 255, 0.58) 30%,
+    rgba(184, 228, 255, 0.16) 56%,
+    transparent 78%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(0.35rem) scale(0.94);
+  transition:
+    opacity 520ms ease,
+    transform 720ms cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+.role-questions-card > * {
+  position: relative;
+  z-index: 1;
+  transition:
+    opacity 420ms ease,
+    transform 560ms cubic-bezier(0.18, 0.84, 0.24, 1),
+    filter 420ms ease;
+}
+
+.role-questions-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  transition-delay: 30ms;
+}
+
+.role-questions-card__context {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(15, 20, 29, 0.055);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.82), transparent 46%),
+    linear-gradient(180deg, rgba(251, 253, 255, 0.76), rgba(245, 249, 252, 0.7));
+  box-shadow:
+    0 12px 24px -34px rgba(15, 20, 29, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  transition-delay: 85ms;
+}
+
+.role-questions-card__logo {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(15, 20, 29, 0.06);
+  border-radius: 0.78rem;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.94), transparent 56%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 247, 251, 0.9));
+  color: rgba(8, 53, 79, 0.84);
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  box-shadow:
+    0 12px 22px -22px rgba(15, 20, 29, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.role-questions-card__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.34rem;
+}
+
+.role-questions-card__context-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.14rem;
+}
+
+.role-questions-card__context-copy span {
+  color: rgba(15, 20, 29, 0.56);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-questions-card__context-copy strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 1rem;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-questions-card__lead {
+  max-width: 36rem;
+}
+
+.role-questions-card__body {
+  transition-delay: 145ms;
+}
+
+.role-questions-card__form,
+.role-questions-card__questions {
+  gap: 0.88rem;
+}
+
+.role-questions-card__questions {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-questions-card__question {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(15, 20, 29, 0.055);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
+}
+
+.role-questions-card__question-label {
+  max-width: 30rem;
+  line-height: 1.35;
+}
+
+.role-questions-card__select-field {
+  width: 100%;
+}
+
+.role-questions-card__select-trigger {
+  min-height: 3.05rem;
+}
+
+.role-questions-card__select-panel {
+  max-height: 8.5rem;
+}
+
+.role-questions-card__number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.role-questions-card__number-input::-webkit-outer-spin-button,
+.role-questions-card__number-input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.role-questions-card__error {
+  padding-left: 0.05rem;
+}
+
+.role-questions-card__footer {
+  gap: 0;
+  padding-top: 0.1rem;
+  transition-delay: 205ms;
+}
+
+.role-questions-card__footer-actions {
+  justify-content: flex-end;
+}
+
+.role-questions-card__footer-actions .button--job-primary {
+  min-width: 10.5rem;
+}
+
+.role-questions-card[data-arrival-state="arriving"],
+.role-questions-card[data-enter-phase="arriving"] {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate3d(0, 1.1rem, 0) scale(0.986);
+}
+
+.role-questions-card[data-arrival-state="arriving"]::before,
+.role-questions-card[data-enter-phase="arriving"]::before {
+  opacity: 0.86;
+  transform: translateX(-50%) translateY(0.8rem) scale(1.08);
+}
+
+.role-questions-card[data-arrival-state="arriving"] > *,
+.role-questions-card[data-enter-phase="arriving"] > * {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate3d(0, 0.9rem, 0);
+}
+
+.role-questions-card[data-arrival-state="settled"],
+.role-questions-card[data-enter-phase="settled"] {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.role-questions-card[data-arrival-state="settled"]::before,
+.role-questions-card[data-enter-phase="settled"]::before {
+  opacity: 0.22;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.role-questions-card[data-arrival-state="settled"] > *,
+.role-questions-card[data-enter-phase="settled"] > * {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+
 .personal-profile-picture-field {
   width: 100%;
 }
@@ -9957,7 +11172,58 @@ select {
 
 .personal-profile-picture-editor__range input {
   width: 100%;
-  accent-color: #8fd8f7;
+  height: 1.05rem;
+  accent-color: #dff5ff;
+  cursor: pointer;
+}
+
+.personal-profile-picture-editor__range input::-webkit-slider-runnable-track {
+  height: 0.34rem;
+  border: 1px solid rgba(24, 181, 255, 0.16);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(223, 245, 255, 0.96), rgba(255, 255, 255, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 8px 18px -16px rgba(8, 94, 139, 0.22);
+}
+
+.personal-profile-picture-editor__range input::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.38rem;
+  border: 1px solid rgba(24, 181, 255, 0.22);
+  border-radius: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.98), rgba(239, 250, 255, 0.92));
+  box-shadow:
+    0 8px 16px -10px rgba(8, 94, 139, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.personal-profile-picture-editor__range input::-moz-range-track {
+  height: 0.34rem;
+  border: 1px solid rgba(24, 181, 255, 0.16);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(223, 245, 255, 0.96), rgba(255, 255, 255, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 8px 18px -16px rgba(8, 94, 139, 0.22);
+}
+
+.personal-profile-picture-editor__range input::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid rgba(24, 181, 255, 0.22);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.98), rgba(239, 250, 255, 0.92));
+  box-shadow:
+    0 8px 16px -10px rgba(8, 94, 139, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .personal-profile-picture-editor__rotate {
@@ -10016,8 +11282,9 @@ select {
 
 .personal-details-card__footer-actions {
   align-items: flex-end;
-  justify-content: flex-end;
-  gap: 0;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
 }
 
 .personal-details-card__footer-actions .button--job-primary {
@@ -10340,6 +11607,15 @@ select {
   .personal-details-card__footer-actions .button {
     width: 100%;
   }
+
+  .role-questions-card__footer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .role-questions-card__footer-actions .button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
@@ -10369,6 +11645,16 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .application-route-transition__wash {
+    display: none;
+  }
+
+  .application-route-transition[data-phase] .application-route-transition__content {
+    animation-duration: 90ms;
+    filter: none;
+    transform: none;
+  }
+
   .cv-parsing-stage::after,
   .cv-parsing-stage[data-handoff-state="handoff"] .cv-signal-loader__chrome,
   .cv-parsing-stage[data-handoff-state="handoff"] .cv-signal-loader__header,
@@ -10376,7 +11662,10 @@ select {
   .cv-parsing-stage[data-handoff-state="handoff"] .cv-signal-loader__cluster,
   .cv-parsing-stage[data-handoff-state="handoff"] .cv-signal-loader__chip,
   .personal-details-card,
+  .role-questions-card,
   .personal-details-card::before,
+  .role-questions-card::before,
+  .role-questions-card > *,
   .personal-details-card > * {
     transition-duration: 180ms;
   }
@@ -10413,6 +11702,18 @@ select {
 
   .personal-details-card[data-arrival-state="arriving"] > *,
   .personal-details-card[data-enter-phase="arriving"] > * {
+    filter: none;
+    transform: translate3d(0, 0.25rem, 0);
+  }
+
+  .role-questions-card[data-arrival-state="arriving"],
+  .role-questions-card[data-enter-phase="arriving"] {
+    filter: none;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+
+  .role-questions-card[data-arrival-state="arriving"] > *,
+  .role-questions-card[data-enter-phase="arriving"] > * {
     filter: none;
     transform: translate3d(0, 0.25rem, 0);
   }

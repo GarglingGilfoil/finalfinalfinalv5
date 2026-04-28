@@ -4,8 +4,13 @@ import { ApplicationCareerHistoryPage } from "../pages/ApplicationCareerHistoryP
 import { ApplicationConfirmPage } from "../pages/ApplicationConfirmPage";
 import { ApplicationPersonalDetailsPage } from "../pages/ApplicationPersonalDetailsPage";
 import { ApplicationParsingPage } from "../pages/ApplicationParsingPage";
+import { ApplicationRoleQuestionsPage } from "../pages/ApplicationRoleQuestionsPage";
 import { ApplicationUploadPage } from "../pages/ApplicationUploadPage";
 import { JobViewPage } from "../pages/JobViewPage";
+import {
+  ApplicationRouteTransition,
+  ApplicationRouteTransitionProvider
+} from "../components/application/ApplicationRouteTransition";
 import { PageChromeFooter, PageChromeHeader } from "../components/PageChrome";
 import { resolveRoute, subscribeToRouteChanges } from "../lib/router";
 
@@ -27,6 +32,8 @@ export function App(): JSX.Element {
     content = <ApplicationUploadPage jobId={route.jobId} />;
   } else if (route.kind === "application-parsing") {
     content = <ApplicationParsingPage jobId={route.jobId} />;
+  } else if (route.kind === "application-role-questions") {
+    content = <ApplicationRoleQuestionsPage jobId={route.jobId} />;
   } else if (route.kind === "application-personal-details") {
     content = <ApplicationPersonalDetailsPage jobId={route.jobId} />;
   } else if (route.kind === "application-career-history") {
@@ -40,10 +47,14 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app-shell">
-      <PageChromeHeader jobId={route.jobId} />
-      <main className="app-main">{content}</main>
-      <PageChromeFooter />
-    </div>
+    <ApplicationRouteTransitionProvider route={route}>
+      <div className="app-shell">
+        <PageChromeHeader jobId={route.jobId} />
+        <main className="app-main">
+          <ApplicationRouteTransition route={route}>{content}</ApplicationRouteTransition>
+        </main>
+        <PageChromeFooter />
+      </div>
+    </ApplicationRouteTransitionProvider>
   );
 }

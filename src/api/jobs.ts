@@ -3,13 +3,10 @@ import { referenceJobView } from "../config/reference-job";
 
 const jobIndex = new Map<string, JobViewData>([[referenceJobView.id, referenceJobView]]);
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
+export function readJobView(jobId: string): JobViewData | null {
+  return jobIndex.get(jobId) ?? null;
 }
 
 export async function getJobView(jobId: string): Promise<JobViewData | null> {
-  await delay(180);
-  return jobIndex.get(jobId) ?? null;
+  return readJobView(jobId);
 }

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { getJobView } from "../api/jobs";
+import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
+import { TransitionLink } from "../components/application/TransitionLink";
+import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import type {
   CandidateCareerHistoryState,
   CandidatePersonalDetailsState,
+  CandidateProfilePictureValue,
   CandidateResumeState,
   CandidateSession,
   PrototypeCareerEntry,
@@ -15,9 +18,14 @@ import { readPrototypeCareerHistoryState } from "../lib/prototype-career-history
 import { readPrototypePersonalDetailsState } from "../lib/prototype-personal-details";
 import { readPrototypeResumeState } from "../lib/prototype-resume";
 import {
+  isPrototypeRoleQuestionsComplete,
+  readPrototypeRoleQuestionsState
+} from "../lib/prototype-role-questions";
+import {
   buildApplicationAuthPath,
   buildApplicationCareerHistoryPath,
   buildApplicationPersonalDetailsPath,
+  buildApplicationRoleQuestionsPath,
   buildApplicationUploadPath,
   buildJobViewPath,
   readNavigationState
@@ -31,7 +39,7 @@ type LoadState = "loading" | "ready" | "missing";
 
 interface ConfirmRoutePayload {
   transitionAt?: string;
-  transitionSource?: "career-education-review";
+  transitionSource?: "career-education-review" | "career-review-complete" | string;
 }
 
 interface SuccessParticle {
@@ -41,6 +49,19 @@ interface SuccessParticle {
 
 function getCompanyMonogram(companyName: string): string {
   const words = companyName
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+
+  if (words.length >= 2) {
+    return `${words[0]?.charAt(0) ?? ""}${words[1]?.charAt(0) ?? ""}`.toUpperCase();
+  }
+
+  return (words[0]?.slice(0, 2) || "DJ").toUpperCase();
+}
+
+function getCandidateMonogram(candidateName: string): string {
+  const words = candidateName
     .split(/\s+/)
     .map((word) => word.trim())
     .filter(Boolean);
@@ -300,12 +321,21 @@ function GuardState({ job }: { job: JobViewData }): JSX.Element {
             Sign in or create an account before you continue with your application for {job.title}.
           </p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={buildApplicationAuthPath(job.id, "signin")}>
+            <TransitionLink
+              className="button button--job-primary"
+              href={buildApplicationAuthPath(job.id, "signin")}
+              source="guard-recovery"
+            >
               Go to application sign in
-            </a>
-            <a className="button button--ghost" href={buildJobViewPath(job.id)}>
+            </TransitionLink>
+            <TransitionLink
+              className="button button--ghost"
+              direction="back"
+              href={buildJobViewPath(job.id)}
+              source="guard-recovery"
+            >
               Back to job view
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
@@ -334,13 +364,40 @@ function StepGuardState({
           <h1>{title}</h1>
           <p className="muted-copy">{copy}</p>
           <div className="application-step__guard-actions">
-            <a className="button button--job-primary" href={actionHref}>
+            <TransitionLink
+              className="button button--job-primary"
+              direction="back"
+              href={actionHref}
+              source="guard-recovery"
+            >
               {actionLabel}
-            </a>
+            </TransitionLink>
           </div>
         </section>
       </ApplicationStepShell>
     </div>
+  );
+}
+
+function RoleQuestionsRedirectState({ job }: { job: JobViewData }): JSX.Element {
+  const { transitionTo } = useApplicationRouteTransition();
+
+  useEffect(() => {
+    transitionTo(buildApplicationRoleQuestionsPath(job.id), {
+      direction: "back",
+      replace: true,
+      source: "guard-recovery"
+    });
+  }, [job.id, transitionTo]);
+
+  return (
+    <StepGuardState
+      actionHref={buildApplicationRoleQuestionsPath(job.id)}
+      actionLabel="Go to role questions"
+      copy="Answer these role questions before continuing with your application."
+      kicker="Application details"
+      title="Role questions needed"
+    />
   );
 }
 
@@ -424,8 +481,18 @@ function CompanyLogoMark({
   );
 }
 
-function ProfileCompletionCard({ jobId }: { jobId: string }): JSX.Element {
+function ProfileCompletionCard({
+  candidateName,
+  jobId,
+  profilePicture
+}: {
+  candidateName: string;
+  jobId: string;
+  profilePicture?: CandidateProfilePictureValue | null;
+}): JSX.Element {
   const strengthenProfileHref = buildApplicationPersonalDetailsPath(jobId);
+  const normalizedCandidateName = candidateName.trim() || "Your Ditto profile";
+  const candidateMonogram = getCandidateMonogram(normalizedCandidateName);
 
   return (
     <section className="application-success__profile-card" aria-labelledby="application-success-profile-title">
@@ -440,12 +507,51 @@ function ProfileCompletionCard({ jobId }: { jobId: string }): JSX.Element {
         </p>
         <div className="application-success__profile-actions">
           {/* Prototype-safe destination until the full candidate profile route exists. */}
-          <a className="button button--job-primary" href={strengthenProfileHref}>
+          <TransitionLink
+            className="button button--job-primary"
+            href={strengthenProfileHref}
+            source="profile-strengthen"
+          >
             Strengthen my profile
-          </a>
-          <a className="application-success__profile-secondary" href={buildJobViewPath(jobId)}>
+          </TransitionLink>
+          <TransitionLink
+            className="application-success__profile-secondary"
+            direction="back"
+            href={buildJobViewPath(jobId)}
+            source="success-back-to-job"
+          >
             Back to job
-          </a>
+          </TransitionLink>
+        </div>
+      </div>
+
+      <div className="application-success__profile-proof" aria-hidden="true">
+        <div className="application-success__profile-proof-card">
+          <div className="application-success__profile-proof-header">
+            <span className="application-success__profile-proof-avatar">
+              {profilePicture?.dataUrl ? (
+                <img alt="" src={profilePicture.dataUrl} />
+              ) : (
+                candidateMonogram
+              )}
+            </span>
+            <span className="application-success__profile-proof-title">
+              <span>{normalizedCandidateName}</span>
+            </span>
+          </div>
+
+          <div className="application-success__profile-proof-composition">
+            <span className="application-success__profile-proof-ring" />
+            <span className="application-success__profile-proof-line application-success__profile-proof-line--one" />
+            <span className="application-success__profile-proof-line application-success__profile-proof-line--two" />
+            <span className="application-success__profile-proof-line application-success__profile-proof-line--three" />
+            <span className="application-success__profile-proof-dot application-success__profile-proof-dot--one" />
+            <span className="application-success__profile-proof-dot application-success__profile-proof-dot--two" />
+            <span className="application-success__profile-proof-dot application-success__profile-proof-dot--three" />
+            <span className="application-success__profile-proof-row application-success__profile-proof-row--wide" />
+            <span className="application-success__profile-proof-row application-success__profile-proof-row--medium" />
+            <span className="application-success__profile-proof-row application-success__profile-proof-row--short" />
+          </div>
         </div>
       </div>
     </section>
@@ -472,6 +578,10 @@ function ReadyState({
     () => (session ? readPrototypePersonalDetailsState(session, job.id) : null),
     [job.id, session]
   );
+  const roleQuestionsState = useMemo(
+    () => (session ? readPrototypeRoleQuestionsState(session, job.id) : null),
+    [job.id, session]
+  );
   const reviewState = useMemo<CandidateCareerHistoryState | null>(
     () => (session ? readPrototypeCareerHistoryState(session, job.id) : null),
     [job.id, session]
@@ -480,10 +590,12 @@ function ReadyState({
     session &&
       selectedResume &&
       personalDetailsState?.status === "complete" &&
+      isPrototypeRoleQuestionsComplete(roleQuestionsState, selectedResume.id) &&
       isReviewReady(reviewState, selectedResume.id)
   );
   const firstName = session?.firstName?.trim() ?? "";
   const headline = firstName ? `Congratulations, ${firstName}.` : "Congratulations.";
+  const candidateName = [session?.firstName, session?.lastName].filter(Boolean).join(" ").trim();
   const jobTitle = job.title.trim() || "this role";
   const companyName = job.companyName.trim() || "the company";
 
@@ -533,6 +645,10 @@ function ReadyState({
     );
   }
 
+  if (!isPrototypeRoleQuestionsComplete(roleQuestionsState, selectedResume.id)) {
+    return <RoleQuestionsRedirectState job={job} />;
+  }
+
   if (!isReviewReady(reviewState, selectedResume.id)) {
     return (
       <StepGuardState
@@ -580,13 +696,15 @@ function ReadyState({
                 <CompanyLogoMark companyName={companyName} logoUrl={job.companyLogoUrl} />
                 <div className="application-success__submission-copy">
                   <p className="application-success__company-name">{companyName}</p>
-                  <a
+                  <TransitionLink
                     aria-label={`View ${jobTitle} job at ${companyName}`}
                     className="application-success__role-title"
+                    direction="back"
                     href={buildJobViewPath(job.id)}
+                    source="success-role-title"
                   >
                     {jobTitle}
-                  </a>
+                  </TransitionLink>
                 </div>
                 <SubmissionSealBadge />
               </div>
@@ -597,7 +715,11 @@ function ReadyState({
 
           </section>
 
-          <ProfileCompletionCard jobId={job.id} />
+          <ProfileCompletionCard
+            candidateName={firstName || candidateName}
+            jobId={job.id}
+            profilePicture={personalDetailsState.profilePicture}
+          />
         </section>
       </ApplicationStepShell>
     </div>
@@ -605,17 +727,19 @@ function ReadyState({
 }
 
 export function ApplicationConfirmPage({ jobId }: ApplicationConfirmPageProps): JSX.Element {
-  const [state, setState] = useState<LoadState>("loading");
-  const [job, setJob] = useState<JobViewData | null>(null);
+  const initialJob = readJobView(jobId);
+  const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
+  const [job, setJob] = useState<JobViewData | null>(initialJob);
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [resumeState, setResumeState] = useState<CandidateResumeState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const prototypeSession = readPrototypeSession();
+    const cachedJob = readJobView(jobId);
 
-    setState("loading");
-    setJob(null);
+    setJob(cachedJob);
+    setState(cachedJob ? "ready" : "loading");
     setSession(prototypeSession);
     setResumeState(prototypeSession ? readPrototypeResumeState(prototypeSession.email) : null);
 
