@@ -7,6 +7,7 @@ import {
   TokenGroup
 } from "../components/JobCards";
 import { TransitionLink } from "../components/application/TransitionLink";
+import { GoogleAdSenseAd } from "../components/GoogleAdSenseAd";
 import { JobBodySections } from "../components/JobBodySections";
 import type { JobViewData } from "../contracts/job-view";
 import {
@@ -22,6 +23,8 @@ interface JobViewPageProps {
 }
 
 interface LayoutBlocks {
+  adSlot: JSX.Element;
+  bottomAdSlot: JSX.Element;
   bottomApplyAction: JSX.Element;
   companySummary: JSX.Element;
   coverImage: JSX.Element | null;
@@ -201,6 +204,7 @@ function renderDesktopLayout(
             {blocks.jobDescription}
             {blocks.companySummary}
             {blocks.bottomApplyAction}
+            {blocks.bottomAdSlot}
           </div>
         </article>
       );
@@ -216,6 +220,7 @@ function renderDesktopLayout(
           <div className="job-sheet__body job-sheet__body--rail-layout">
             <aside className="job-sheet__summary-rail">
               {blocks.primaryApplyAction}
+              {blocks.adSlot}
               <div className="job-sheet__summary-card">{blocks.factGrid}</div>
               <div className="job-sheet__summary-card job-sheet__summary-card--light">
                 {blocks.taxonomy}
@@ -230,6 +235,7 @@ function renderDesktopLayout(
 
           <div className="job-sheet__body job-sheet__body--footer-only">
             {blocks.bottomApplyAction}
+            {blocks.bottomAdSlot}
           </div>
         </article>
       );
@@ -261,6 +267,7 @@ function renderDesktopLayout(
 
           <div className="job-sheet__body job-sheet__body--footer-only">
             {blocks.bottomApplyAction}
+            {blocks.bottomAdSlot}
           </div>
         </article>
       );
@@ -282,6 +289,7 @@ function renderDesktopLayout(
             <aside className="job-sheet__action-rail">
               <div className="job-sheet__action-rail-inner">
                 {blocks.primaryApplyAction}
+                {blocks.adSlot}
                 <div className="job-sheet__summary-card">{blocks.factGrid}</div>
                 <div className="job-sheet__summary-card job-sheet__summary-card--light">
                   {blocks.taxonomy}
@@ -292,6 +300,7 @@ function renderDesktopLayout(
 
           <div className="job-sheet__body job-sheet__body--footer-only">
             {blocks.bottomApplyAction}
+            {blocks.bottomAdSlot}
           </div>
         </article>
       );
@@ -304,7 +313,11 @@ function renderDesktopLayout(
           <header className="job-sheet__header job-sheet__header--split-hero">
             <div className="job-sheet__hero-grid">
               <div className="job-sheet__hero-main">{blocks.masthead}</div>
-              <aside className="job-sheet__apply-panel">{blocks.primaryApplyAction}{blocks.factGrid}</aside>
+              <aside className="job-sheet__apply-panel">
+                {blocks.primaryApplyAction}
+                {blocks.adSlot}
+                {blocks.factGrid}
+              </aside>
             </div>
             <div className="job-sheet__support-row job-sheet__support-row--taxonomy-light">
               {blocks.taxonomy}
@@ -315,6 +328,7 @@ function renderDesktopLayout(
             {blocks.jobDescription}
             {blocks.companySummary}
             {blocks.bottomApplyAction}
+            {blocks.bottomAdSlot}
           </div>
         </article>
       );
@@ -345,11 +359,13 @@ function renderMobileLayout(
 
       <div className="job-sheet__body job-sheet__body--mobile-layout">
         <div className="job-sheet__mobile-primary-action">{blocks.primaryApplyAction}</div>
+        <div className="job-sheet__mobile-ad-slot">{blocks.adSlot}</div>
         <div className="job-sheet__mobile-facts">{blocks.factGrid}</div>
         <div className="job-sheet__mobile-taxonomy">{blocks.taxonomy}</div>
         {blocks.jobDescription}
         {blocks.companySummary}
         {blocks.bottomApplyAction}
+        {blocks.bottomAdSlot}
       </div>
     </article>
   );
@@ -403,6 +419,16 @@ function ReadyState({
   );
 
   const blocks: LayoutBlocks = {
+    adSlot: (
+      <GoogleAdSenseAd
+        adName="2026 Job View"
+        className="job-sheet__ad-slot"
+        client="ca-pub-3286466071254967"
+        format="auto"
+        fullWidthResponsive
+        slot="5871061356"
+      />
+    ),
     coverImage: <JobCoverImage job={job} />,
     masthead: <JobMasthead companyInitial={companyInitial} job={job} />,
     factGrid: <FactGrid className="job-sheet__fact-grid" items={facts} />,
@@ -420,9 +446,24 @@ function ReadyState({
     primaryApplyAction,
     bottomApplyAction: (
       <div className="job-sheet__footer-actions">
+        <div className="job-sheet__footer-copy">
+          <strong>Ready to apply?</strong>
+        </div>
         <TransitionLink className="button button--job-primary" href={applyHref} source="job-apply">
           Apply Now
         </TransitionLink>
+      </div>
+    ),
+    bottomAdSlot: (
+      <div className="job-sheet__footer-ad-row">
+        <GoogleAdSenseAd
+          adName="2026 Job View Bottom"
+          className="job-sheet__bottom-ad-slot"
+          client="ca-pub-3286466071254967"
+          format="auto"
+          fullWidthResponsive
+          slot="9227852430"
+        />
       </div>
     )
   };

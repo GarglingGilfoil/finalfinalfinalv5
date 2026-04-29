@@ -211,7 +211,6 @@ function ReadyState({
         >
           <CvParsingSignalLoader
             candidateName={parsingLoaderModel.candidateName}
-            extractedSignals={parsingLoaderModel.extractedSignals}
             heading={parsingLoaderModel.heading}
             onSkip={handleSkip}
             skipDisabled={skipTransitionState === "handoff"}

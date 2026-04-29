@@ -1,15 +1,9 @@
 export type CvParsingSignalTone = "role" | "education" | "location" | "industry" | "skill";
-export type CvParsingSignalTierHint = "lead" | "support" | "peripheral";
-export type CvParsingSignalTrack = "seed" | "rotation";
 
 export interface CvParsingSignalDefinition {
   id: string;
   label: string;
   tone: CvParsingSignalTone;
-  initialTier?: CvParsingSignalTierHint;
-  footprintRem?: number;
-  sceneWeight?: number;
-  track?: CvParsingSignalTrack;
 }
 
 export interface CvParsingHeadingLockup {
@@ -30,90 +24,62 @@ export const DEFAULT_CV_PARSING_HEADING_LOCKUP: CvParsingHeadingLockup = {
   support: "Reading the clearest signals from your CV"
 };
 
+// Prototype-only parsed hints. These are intentionally not rendered on the parsing
+// animation, but later screens can still use them for soft defaults like location.
 export const DEFAULT_CV_PARSING_SIGNALS: readonly CvParsingSignalDefinition[] = [
   {
     id: "front-end-developer",
     label: "Front End Developer",
-    tone: "role",
-    initialTier: "lead",
-    footprintRem: 8.9,
-    sceneWeight: 0,
-    track: "seed"
+    tone: "role"
   },
   {
     id: "cape-town",
     label: "Cape Town",
-    tone: "location",
-    initialTier: "support",
-    footprintRem: 6.2,
-    sceneWeight: 1,
-    track: "seed"
+    tone: "location"
   },
   {
     id: "react",
     label: "React",
-    tone: "skill",
-    initialTier: "support",
-    footprintRem: 4.7,
-    sceneWeight: 2,
-    track: "seed"
+    tone: "skill"
   },
   {
     id: "bcomm-degree",
     label: "BComm Degree",
-    tone: "education",
-    initialTier: "peripheral",
-    footprintRem: 7.2,
-    sceneWeight: 3,
-    track: "seed"
+    tone: "education"
   },
   {
     id: "technology",
     label: "Technology",
-    tone: "industry",
-    initialTier: "peripheral",
-    footprintRem: 6.7,
-    sceneWeight: 4,
-    track: "seed"
+    tone: "industry"
   },
   {
     id: "advertising-industry",
     label: "Advertising Industry",
-    tone: "industry",
-    footprintRem: 10.2,
-    sceneWeight: 5,
-    track: "rotation"
+    tone: "industry"
   },
   {
     id: "digital-agency",
     label: "Digital Agency",
-    tone: "industry",
-    footprintRem: 7.3,
-    sceneWeight: 6,
-    track: "rotation"
+    tone: "industry"
   },
   {
     id: "javascript",
     label: "JavaScript",
-    tone: "skill",
-    footprintRem: 6.3,
-    sceneWeight: 7,
-    track: "rotation"
+    tone: "skill"
   },
   {
     id: "team-lead",
     label: "Team Lead",
-    tone: "role",
-    footprintRem: 6,
-    sceneWeight: 8,
-    track: "rotation"
+    tone: "role"
   }
 ] as const;
 
 export const DEFAULT_CV_PARSING_STATUS_LINES = [
-  "Building your profile...",
-  "Reading key signals from your CV...",
-  "Mapping your experience..."
+  "Analyzing your resume",
+  "Checking your work history",
+  "Identifying career highlights",
+  "Reviewing education history",
+  "Organizing your profile"
 ] as const;
 
 interface BuildMockCvParsingSignalLoaderModelOptions {
