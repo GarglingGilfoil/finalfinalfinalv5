@@ -19,12 +19,17 @@ const COMPACT_STABLE_VISIBLE_SIGNALS = 3;
 const COMPACT_TRANSITION_VISIBLE_SIGNALS = 4;
 const INTRO_DELAY_MS = 840;
 const BUILD_INTERVAL_MS = 860;
-const FOCUS_INTERVAL_MS = 3600;
-const RECOMPOSE_INTERVAL_MS = 8200;
+const FOCUS_INTERVAL_MS = 5600;
+const RECOMPOSE_INTERVAL_MS = 11800;
 const RECOMPOSE_EXIT_MS = 420;
 const RECOMPOSE_ENTER_MS = 760;
 const LEAD_TRANSFER_WINDOW_MS = 1120;
-const STATUS_INTERVAL_MS = 6800;
+const STATUS_INTERVAL_MS = 9400;
+
+interface ChipSlotGeometry {
+  widthRem: number;
+  labelMaxRem: number;
+}
 
 const DESKTOP_SIGNAL_SLOTS = [
   {
@@ -77,101 +82,19 @@ const COMPACT_SIGNAL_SLOTS = [
   }
 ] as const;
 
-interface ChipMotionProfile {
-  driftXRem: number;
-  driftYRem: number;
-  durationMs: number;
-  delayMs: number;
-  scaleLift: number;
-  pulseDelayMs: number;
-  pulseOpacityLift: number;
-}
-
-const DESKTOP_CHIP_MOTION_PROFILES: readonly ChipMotionProfile[] = [
-  {
-    driftXRem: 0.42,
-    driftYRem: -0.54,
-    durationMs: 9200,
-    delayMs: 0,
-    scaleLift: 0.016,
-    pulseDelayMs: 0,
-    pulseOpacityLift: 0.08
-  },
-  {
-    driftXRem: -0.72,
-    driftYRem: 0.42,
-    durationMs: 11000,
-    delayMs: 520,
-    scaleLift: 0.014,
-    pulseDelayMs: 120,
-    pulseOpacityLift: 0.05
-  },
-  {
-    driftXRem: 0.68,
-    driftYRem: 0.36,
-    durationMs: 9900,
-    delayMs: 260,
-    scaleLift: 0.014,
-    pulseDelayMs: 220,
-    pulseOpacityLift: 0.05
-  },
-  {
-    driftXRem: -0.48,
-    driftYRem: -0.42,
-    durationMs: 11800,
-    delayMs: 760,
-    scaleLift: 0.013,
-    pulseDelayMs: 180,
-    pulseOpacityLift: 0.04
-  },
-  {
-    driftXRem: 0.56,
-    driftYRem: -0.38,
-    durationMs: 10600,
-    delayMs: 420,
-    scaleLift: 0.013,
-    pulseDelayMs: 280,
-    pulseOpacityLift: 0.04
-  }
+const DESKTOP_CHIP_SLOT_GEOMETRY: readonly ChipSlotGeometry[] = [
+  { widthRem: 14.2, labelMaxRem: 11.8 },
+  { widthRem: 12.2, labelMaxRem: 9.8 },
+  { widthRem: 12.2, labelMaxRem: 9.8 },
+  { widthRem: 11.2, labelMaxRem: 8.8 },
+  { widthRem: 11.2, labelMaxRem: 8.8 }
 ] as const;
 
-const COMPACT_CHIP_MOTION_PROFILES: readonly ChipMotionProfile[] = [
-  {
-    driftXRem: 0.24,
-    driftYRem: -0.34,
-    durationMs: 8800,
-    delayMs: 0,
-    scaleLift: 0.012,
-    pulseDelayMs: 0,
-    pulseOpacityLift: 0.06
-  },
-  {
-    driftXRem: -0.42,
-    driftYRem: 0.24,
-    durationMs: 10000,
-    delayMs: 420,
-    scaleLift: 0.011,
-    pulseDelayMs: 120,
-    pulseOpacityLift: 0.045
-  },
-  {
-    driftXRem: 0.38,
-    driftYRem: 0.22,
-    durationMs: 9400,
-    delayMs: 220,
-    scaleLift: 0.011,
-    pulseDelayMs: 200,
-    pulseOpacityLift: 0.045
-  },
-  {
-    driftXRem: 0.2,
-    driftYRem: -0.28,
-    durationMs: 10400,
-    delayMs: 620,
-    scaleLift: 0.01,
-    pulseDelayMs: 260,
-    pulseOpacityLift: 0.04
-  }
+const COMPACT_CHIP_SLOT_GEOMETRY: readonly ChipSlotGeometry[] = [
+  { widthRem: 12.1, labelMaxRem: 9.8 },
+  { widthRem: 8.4, labelMaxRem: 6.4 },
+  { widthRem: 8.4, labelMaxRem: 6.4 },
+  { widthRem: 10.8, labelMaxRem: 8.6 }
 ] as const;
 
 type ScenePhase = "intro" | "bloom" | "build" | "stable" | "recompose";
@@ -471,112 +394,31 @@ function estimateSignalFootprintRem(label: string, tone: CvParsingSignalTone): n
   return Number(Math.min(10.8, Math.max(4.6, 3.72 + characterCount * 0.19 + wordCount * 0.28 + toneBoost)).toFixed(2));
 }
 
-function resolveChipFootprintRem(
-  signal: NormalizedSignal,
-  tier: CvParsingSignalTierHint,
-  focusState: FocusState,
-  pairedSignal?: NormalizedSignal | null
-): number {
-  const baseFootprint = Math.max(signal.footprintRem, pairedSignal?.footprintRem ?? 0);
-  const tierBoost =
-    tier === "lead"
-      ? 1.28
-      : tier === "support"
-        ? 0.62
-        : 0.18;
-  const focusBoost =
-    focusState === "promoting" || focusState === "focused"
-      ? 0.34
-      : focusState === "demoting"
-        ? 0.18
-        : 0;
-
-  return Number((baseFootprint + tierBoost + focusBoost).toFixed(2));
-}
-
-function hashSignalMotionSeed(value: string): number {
-  let hash = 2166136261;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
-}
-
-function seededUnit(seed: number, salt: number): number {
-  const value = Math.sin(seed * 0.000001 + salt * 12.9898) * 43758.5453;
-  return value - Math.floor(value);
-}
-
-function getChipMotionProfile(signalId: string, slotIndex: number, compactLayout: boolean): ChipMotionProfile {
-  const profiles = compactLayout ? COMPACT_CHIP_MOTION_PROFILES : DESKTOP_CHIP_MOTION_PROFILES;
-  const baseProfile = profiles[slotIndex % profiles.length];
-  const seed = hashSignalMotionSeed(`${signalId}:${slotIndex}:${compactLayout ? "compact" : "desktop"}`);
-  const amplitudeRange = compactLayout ? 0.28 : 0.46;
-  const durationRange = compactLayout ? 1400 : 2200;
-  const delayRange = compactLayout ? 320 : 560;
-
-  return {
-    driftXRem: Number(
-      (baseProfile.driftXRem * (0.92 + seededUnit(seed, 1) * amplitudeRange)).toFixed(3)
-    ),
-    driftYRem: Number(
-      (baseProfile.driftYRem * (0.9 + seededUnit(seed, 2) * amplitudeRange)).toFixed(3)
-    ),
-    durationMs: Math.round(baseProfile.durationMs + (seededUnit(seed, 3) - 0.5) * durationRange),
-    delayMs: Math.round(baseProfile.delayMs + seededUnit(seed, 4) * delayRange),
-    scaleLift: Number((baseProfile.scaleLift + seededUnit(seed, 5) * 0.004).toFixed(3)),
-    pulseDelayMs: Math.round(baseProfile.pulseDelayMs + seededUnit(seed, 6) * 220),
-    pulseOpacityLift: Number((baseProfile.pulseOpacityLift + seededUnit(seed, 7) * 0.025).toFixed(3))
-  };
+function getChipSlotGeometry(slotIndex: number, compactLayout: boolean): ChipSlotGeometry {
+  const geometries = compactLayout ? COMPACT_CHIP_SLOT_GEOMETRY : DESKTOP_CHIP_SLOT_GEOMETRY;
+  return geometries[slotIndex] ?? geometries[geometries.length - 1] ?? { widthRem: 10, labelMaxRem: 8 };
 }
 
 function buildChipStyle({
-  signalId,
-  footprintRem,
-  labelMaxRem,
+  slotGeometry,
   revealed,
-  prefersReducedMotion,
-  tier,
-  slotIndex,
-  compactLayout
+  prefersReducedMotion
 }: {
-  signalId: string;
-  footprintRem: number;
-  labelMaxRem: number;
+  slotGeometry: ChipSlotGeometry;
   revealed: boolean;
   prefersReducedMotion: boolean;
-  tier: CvParsingSignalTierHint;
-  slotIndex: number;
-  compactLayout: boolean;
 }): ChipStyle {
-  const motionProfile = getChipMotionProfile(signalId, slotIndex, compactLayout);
-  const motionFactor = prefersReducedMotion ? 0.18 : 1;
-  const tierOpacityLift =
-    tier === "lead"
-      ? 0.085
-      : tier === "support"
-        ? 0.055
-        : 0.04;
   const chipStyle: ChipStyle = {
-    minWidth: `${footprintRem}rem`,
-    maxWidth: `${(footprintRem + 1.32).toFixed(2)}rem`,
-    ["--chip-footprint-width"]: `${footprintRem}rem`,
-    ["--chip-label-max-width"]: `${labelMaxRem}rem`,
-    ["--chip-drift-duration"]: `${motionProfile.durationMs}ms`,
-    ["--chip-drift-delay"]: `${motionProfile.delayMs}ms`,
-    ["--chip-drift-x-max"]: `${(motionProfile.driftXRem * motionFactor).toFixed(3)}rem`,
-    ["--chip-drift-y-max"]: `${(motionProfile.driftYRem * motionFactor).toFixed(3)}rem`,
-    ["--chip-drift-scale-lift"]: `${(motionProfile.scaleLift * motionFactor).toFixed(3)}`,
-    ["--chip-pulse-delay"]: `${motionProfile.pulseDelayMs}ms`,
-    ["--chip-pulse-opacity-lift"]: `${((motionProfile.pulseOpacityLift + tierOpacityLift) * motionFactor).toFixed(3)}`
+    width: `${slotGeometry.widthRem}rem`,
+    minWidth: `${slotGeometry.widthRem}rem`,
+    maxWidth: `${slotGeometry.widthRem}rem`,
+    ["--chip-footprint-width"]: `${slotGeometry.widthRem}rem`,
+    ["--chip-label-max-width"]: `${slotGeometry.labelMaxRem}rem`
   };
 
   if (!revealed) {
     chipStyle.opacity = 0;
-    chipStyle.filter = prefersReducedMotion ? "none" : "blur(10px) saturate(0.5)";
+    chipStyle.filter = prefersReducedMotion ? "none" : "blur(6px) saturate(0.72)";
     chipStyle.pointerEvents = "none";
     chipStyle.transform = prefersReducedMotion
       ? "var(--chip-anchor) translate3d(var(--chip-base-x), var(--chip-base-y), 0) scale(calc(var(--chip-scale) * 0.96))"
@@ -808,10 +650,6 @@ export function CvParsingSignalLoader({
     () => normalizeLines(statusLines, DEFAULT_CV_PARSING_STATUS_LINES),
     [statusLines]
   );
-  const resolvedSignalMap = useMemo(
-    () => new Map(resolvedSignals.map((signal) => [signal.id, signal])),
-    [resolvedSignals]
-  );
   const signalSlots = compactSignalLayout ? COMPACT_SIGNAL_SLOTS : DESKTOP_SIGNAL_SLOTS;
   const stableVisibleSignalLimit = compactSignalLayout
     ? COMPACT_STABLE_VISIBLE_SIGNALS
@@ -956,7 +794,7 @@ export function CvParsingSignalLoader({
   );
 
   useEffect(() => {
-    if (scenePhase !== "stable" || renderedSignals.length <= 1) {
+    if (prefersReducedMotion || scenePhase !== "stable" || renderedSignals.length <= 1) {
       return;
     }
 
@@ -975,6 +813,7 @@ export function CvParsingSignalLoader({
 
   useEffect(() => {
     if (
+      prefersReducedMotion ||
       scenePhase !== "stable" ||
       resolvedSignals.length <= visibleSignals.length ||
       visibleSignals.length === 0 ||
@@ -1065,7 +904,7 @@ export function CvParsingSignalLoader({
   ]);
 
   useEffect(() => {
-    if (resolvedStatusLines.length <= 1) {
+    if (prefersReducedMotion || resolvedStatusLines.length <= 1) {
       return;
     }
 
@@ -1185,25 +1024,13 @@ export function CvParsingSignalLoader({
                   : leadTransfer?.from === index
                     ? "demoting"
                     : "steady";
-              const pairedSignal =
-                recomposeState?.slotIndex === index && recomposeState.stage === "enter"
-                  ? resolvedSignalMap.get(recomposeState.outgoingSignalId)
-                  : recomposeState?.slotIndex === index && recomposeState.stage === "exit"
-                    ? resolvedSignalMap.get(recomposeState.incomingSignalId)
-                    : null;
-              const chipFootprintRem = resolveChipFootprintRem(signal, tier, focusState, pairedSignal);
-              const chipLabelMaxRem = Number(Math.max(3.3, chipFootprintRem - 0.72).toFixed(2));
+              const chipSlotGeometry = getChipSlotGeometry(index, compactSignalLayout);
               const chipStyle = buildChipStyle({
-                signalId: signal.id,
-                footprintRem: chipFootprintRem,
-                labelMaxRem: chipLabelMaxRem,
+                slotGeometry: chipSlotGeometry,
                 revealed: isRevealed,
-                prefersReducedMotion,
-                tier,
-                slotIndex: index,
-                compactLayout: compactSignalLayout
+                prefersReducedMotion
               });
-              const chipLabelStyle = buildChipLabelStyle(chipLabelMaxRem);
+              const chipLabelStyle = buildChipLabelStyle(chipSlotGeometry.labelMaxRem);
 
               return (
                 <li

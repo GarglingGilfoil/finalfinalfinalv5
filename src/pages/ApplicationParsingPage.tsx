@@ -190,7 +190,7 @@ function ReadyState({
 
     setSkipTransitionState("handoff");
 
-    const handoffDelay = prefersReducedMotion ? 120 : 560;
+    const handoffDelay = prefersReducedMotion ? 120 : 680;
     handoffTimeoutRef.current = window.setTimeout(() => {
       transitionTo(buildApplicationPersonalDetailsPath(job.id), {
         direction: "forward",
