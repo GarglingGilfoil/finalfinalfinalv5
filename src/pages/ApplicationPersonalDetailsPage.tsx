@@ -1,6 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { createPortal } from "react-dom";
-import { Pencil, RotateCw } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Pencil } from "lucide-react";
 import { getJobView, readJobView } from "../api/jobs";
 import { ApplicationLocationField } from "../components/ApplicationLocationField";
 import {
@@ -9,6 +8,7 @@ import {
 } from "../components/ApplicationPhoneField";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
+import { ProfileImageUploader } from "../components/ProfileImageUploader";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
@@ -56,10 +56,6 @@ interface ValidationState {
   location?: string;
   phoneNumber?: string;
 }
-
-const PROFILE_PICTURE_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const PROFILE_PICTURE_ACCEPTED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const PROFILE_PICTURE_EXPORT_SIZE = 720;
 
 function usePrefersReducedMotion(): boolean {
   const [reducedMotion, setReducedMotion] = useState(() => {
@@ -111,72 +107,6 @@ function buildCandidateInitials(session: CandidateSession | null): string {
     .toUpperCase();
 
   return initials || "DJ";
-}
-
-function isSupportedProfilePicture(file: File): boolean {
-  if (PROFILE_PICTURE_ACCEPTED_MIME_TYPES.has(file.type)) {
-    return true;
-  }
-
-  return /\.(jpe?g|png|webp)$/i.test(file.name);
-}
-
-interface PendingProfilePictureEdit {
-  dataUrl: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-}
-
-function loadImageElement(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      resolve(image);
-    };
-    image.onerror = () => {
-      reject(new Error("Unable to load image."));
-    };
-    image.src = src;
-  });
-}
-
-async function cropProfilePictureImage(
-  imageSrc: string,
-  rotation: number,
-  zoom: number,
-  mimeType: string
-): Promise<string> {
-  const image = await loadImageElement(imageSrc);
-  const canvas = document.createElement("canvas");
-  const canvasContext = canvas.getContext("2d");
-
-  if (!canvasContext) {
-    throw new Error("Unable to prepare image editor.");
-  }
-
-  canvas.width = PROFILE_PICTURE_EXPORT_SIZE;
-  canvas.height = PROFILE_PICTURE_EXPORT_SIZE;
-
-  const angle = (rotation * Math.PI) / 180;
-  const normalizedRotation = ((rotation % 180) + 180) % 180;
-  const rotatedWidth = normalizedRotation === 90 ? image.naturalHeight : image.naturalWidth;
-  const rotatedHeight = normalizedRotation === 90 ? image.naturalWidth : image.naturalHeight;
-  const coverScale = Math.max(
-    PROFILE_PICTURE_EXPORT_SIZE / rotatedWidth,
-    PROFILE_PICTURE_EXPORT_SIZE / rotatedHeight
-  );
-  const scale = coverScale * zoom;
-
-  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-  canvasContext.save();
-  canvasContext.translate(PROFILE_PICTURE_EXPORT_SIZE / 2, PROFILE_PICTURE_EXPORT_SIZE / 2);
-  canvasContext.rotate(angle);
-  canvasContext.scale(scale, scale);
-  canvasContext.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
-  canvasContext.restore();
-
-  return canvas.toDataURL(mimeType === "image/png" ? "image/png" : "image/jpeg", 0.92);
 }
 
 function findParsedLocationHint(
@@ -302,237 +232,54 @@ function ProfilePictureField({
   onChange: (value: CandidateProfilePictureValue | null) => void;
   value: CandidateProfilePictureValue | null;
 }): JSX.Element {
-  const inputId = useId();
-  const helpId = `${inputId}-help`;
-  const feedbackId = `${inputId}-feedback`;
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const uploadButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingEdit, setPendingEdit] = useState<PendingProfilePictureEdit | null>(null);
-  const [cropZoom, setCropZoom] = useState(1);
-  const [cropRotation, setCropRotation] = useState(0);
-  const [isApplyingCrop, setIsApplyingCrop] = useState(false);
-  const describedBy = [helpId, error ? feedbackId : null].filter(Boolean).join(" ");
-
-  const handleSelectFile = (event: ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    setError(null);
-
-    if (!isSupportedProfilePicture(file)) {
-      setError("Use a JPG, PNG, or WebP image.");
-      return;
-    }
-
-    if (file.size > PROFILE_PICTURE_MAX_FILE_SIZE_BYTES) {
-      setError("Choose an image under 5MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        setError("We couldn’t read that image. Try a different file.");
-        return;
-      }
-
-      setCropZoom(1);
-      setCropRotation(0);
-      setPendingEdit({
-        dataUrl: reader.result,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type || "image/*",
-      });
-    };
-
-    reader.onerror = () => {
-      setError("We couldn’t read that image. Try a different file.");
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  const cancelCrop = (): void => {
-    setPendingEdit(null);
-    setCropZoom(1);
-    setCropRotation(0);
-    setIsApplyingCrop(false);
-    setError(null);
-    window.setTimeout(() => {
-      uploadButtonRef.current?.focus();
-    }, 0);
-  };
-
-  const applyCrop = async (): Promise<void> => {
-    if (!pendingEdit || isApplyingCrop) {
-      return;
-    }
-
-    setIsApplyingCrop(true);
-    setError(null);
-
-    try {
-      const croppedDataUrl = await cropProfilePictureImage(
-        pendingEdit.dataUrl,
-        cropRotation,
-        cropZoom,
-        pendingEdit.mimeType
-      );
-
-      onChange({
-        dataUrl: croppedDataUrl,
-        fileName: pendingEdit.fileName,
-        fileSize: pendingEdit.fileSize,
-        mimeType: pendingEdit.mimeType || "image/*",
-        updatedAt: new Date().toISOString()
-      });
-      setPendingEdit(null);
-      setCropZoom(1);
-      setCropRotation(0);
-    } catch {
-      setError("We couldn’t crop that image. Try a different file.");
-    } finally {
-      setIsApplyingCrop(false);
-      window.setTimeout(() => {
-        uploadButtonRef.current?.focus();
-      }, 0);
-    }
-  };
-
-  const editorDialog = pendingEdit ? (
-    <div
-      aria-labelledby={`${inputId}-crop-title`}
-      aria-modal="true"
-      className="personal-profile-picture-editor"
-      role="dialog"
-    >
-      <div className="personal-profile-picture-editor__panel">
-        <div className="personal-profile-picture-editor__header">
-          <div>
-            <h2 id={`${inputId}-crop-title`}>Adjust profile picture</h2>
-            <p>Crop and rotate before adding it to your profile.</p>
-          </div>
-        </div>
-
-        <div className="personal-profile-picture-editor__stage">
-          <div
-            className="personal-profile-picture-editor__image"
-            style={{
-              backgroundImage: `url(${pendingEdit.dataUrl})`,
-              transform: `scale(${cropZoom}) rotate(${cropRotation}deg)`
-            }}
-          />
-          <div className="personal-profile-picture-editor__crop-frame" aria-hidden="true" />
-        </div>
-
-        <div className="personal-profile-picture-editor__controls">
-          <label className="personal-profile-picture-editor__range">
-            <span>Zoom</span>
-            <input
-              max="1.8"
-              min="1"
-              onChange={(event) => {
-                setCropZoom(Number(event.target.value));
-              }}
-              step="0.01"
-              type="range"
-              value={cropZoom}
-            />
-          </label>
-          <button
-            aria-label="Rotate profile picture"
-            className="personal-profile-picture-editor__rotate"
-            onClick={() => {
-              setCropRotation((current) => (current + 90) % 360);
-            }}
-            type="button"
-          >
-            <RotateCw aria-hidden="true" className="personal-profile-picture-field__icon" />
-          </button>
-        </div>
-
-        <div className="personal-profile-picture-editor__actions">
-          <button
-            className="button button--ghost"
-            disabled={isApplyingCrop}
-            onClick={cancelCrop}
-            type="button"
-          >
-            Cancel
-          </button>
-          <button
-            className="button button--job-primary"
-            disabled={isApplyingCrop}
-            onClick={() => {
-              void applyCrop();
-            }}
-            type="button"
-          >
-            {isApplyingCrop ? "Applying..." : "Use photo"}
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
   return (
-    <>
-      <div className="personal-profile-picture-field">
-        <div className="personal-profile-picture-field__control">
-          <button
-            aria-describedby={describedBy}
-            aria-label={value ? "Replace profile picture" : "Add profile picture"}
-            className="personal-profile-picture-field__preview-button"
-            onClick={() => inputRef.current?.click()}
-            ref={uploadButtonRef}
-            type="button"
-          >
-            <span className="personal-profile-picture-field__preview">
-              {value?.dataUrl ? (
-                <img
-                  alt={candidateName ? `${candidateName} profile picture preview` : "Profile picture preview"}
-                  src={value.dataUrl}
-                />
-              ) : (
-                <span>{candidateInitials}</span>
-              )}
-            </span>
-            <span className="personal-profile-picture-field__edit-badge" aria-hidden="true">
-              <Pencil aria-hidden="true" className="personal-profile-picture-field__edit-icon" />
-            </span>
-          </button>
-          <div className="personal-profile-picture-field__content">
-            <p className="personal-profile-picture-field__hint" id={helpId}>
-              Add an optional profile picture. JPG, PNG, max 5MB.
-            </p>
-            <input
-              accept="image/jpeg,image/png,image/webp"
-              className="personal-profile-picture-field__input"
-              id={inputId}
-              onChange={handleSelectFile}
-              ref={inputRef}
-              tabIndex={-1}
-              type="file"
-            />
-            {error ? (
-              <p className="auth-field__error" id={feedbackId} role="status">
-                {error}
+    <ProfileImageUploader
+      cropShape="circle"
+      editorDescription="Crop and rotate before adding it to your profile."
+      editorTitle="Adjust profile picture"
+      onChange={onChange}
+      outputHeight={720}
+      outputWidth={720}
+    >
+      {({ describedBy, error, feedbackId, helpId, openFileDialog, triggerRef }) => (
+        <div className="personal-profile-picture-field">
+          <div className="personal-profile-picture-field__control">
+            <button
+              aria-describedby={describedBy}
+              aria-label={value ? "Replace profile picture" : "Add profile picture"}
+              className="personal-profile-picture-field__preview-button"
+              onClick={openFileDialog}
+              ref={triggerRef}
+              type="button"
+            >
+              <span className="personal-profile-picture-field__preview">
+                {value?.dataUrl ? (
+                  <img
+                    alt={candidateName ? `${candidateName} profile picture preview` : "Profile picture preview"}
+                    src={value.dataUrl}
+                  />
+                ) : (
+                  <span>{candidateInitials}</span>
+                )}
+              </span>
+              <span className="personal-profile-picture-field__edit-badge" aria-hidden="true">
+                <Pencil aria-hidden="true" className="personal-profile-picture-field__edit-icon" />
+              </span>
+            </button>
+            <div className="personal-profile-picture-field__content">
+              <p className="personal-profile-picture-field__hint" id={helpId}>
+                Add an optional profile picture. JPG, PNG, max 5MB.
               </p>
-            ) : null}
+              {error ? (
+                <p className="auth-field__error" id={feedbackId} role="status">
+                  {error}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
-      {editorDialog && typeof document !== "undefined"
-        ? createPortal(editorDialog, document.body)
-        : editorDialog}
-    </>
+      )}
+    </ProfileImageUploader>
   );
 }
 

@@ -8,6 +8,7 @@ import type {
 } from "../contracts/application";
 import type {
   CandidateFileCategory,
+  CandidateLanguageEntry,
   CandidateMoneyValue,
   CandidateProfileFile,
   CandidateProfileState
@@ -19,10 +20,67 @@ import {
 } from "./prototype-career-history";
 import { readPrototypePersonalDetailsState } from "./prototype-personal-details";
 import { readOrCreatePrototypeResumeState } from "./prototype-resume";
+import { buildApplicationLocationValue, findLocationCityInCountry } from "./location-data";
+import { getNationalityByCountryCode } from "./nationalities";
 
 const CANDIDATE_PROFILE_STORAGE_PREFIX = "ditto-jobs.prototype-candidate-profile";
 const CANDIDATE_PROFILE_VERSION = 1;
 const REFERENCE_JOB_ID = referenceJobView.id;
+
+const PROTOTYPE_REVIEW_PROFILE_SEED = {
+  firstName: "Daniel",
+  lastName: "Adams",
+  email: "daniel.adams@example.com",
+  currentJobTitle: "Senior React Engineer",
+  phoneNumber: "+27 82 555 0194",
+  alternativeNumber: "+27 71 555 2840",
+  aboutMe:
+    "<p>Senior React Engineer with 8 years of experience building high-performance SaaS products, internal platforms, and customer-facing web applications. Strong background in frontend architecture, design systems, API integration, and mentoring junior developers. I enjoy working in product-led teams where engineering quality, user experience, and commercial outcomes matter.</p>",
+  skills: [
+    "React",
+    "TypeScript",
+    "JavaScript",
+    "Next.js",
+    "Frontend Architecture",
+    "Design Systems",
+    "API Integration",
+    "UX Collaboration",
+    "Testing",
+    "Performance Optimization"
+  ],
+  languages: [
+    {
+      id: "language-en-review-seed",
+      languageCode: "en",
+      languageName: "English",
+      proficiency: "Full professional proficiency"
+    },
+    {
+      id: "language-af-review-seed",
+      languageCode: "af",
+      languageName: "Afrikaans",
+      proficiency: "Native or bilingual proficiency"
+    },
+    {
+      id: "language-de-review-seed",
+      languageCode: "de",
+      languageName: "German",
+      proficiency: "Limited working proficiency"
+    }
+  ] satisfies CandidateLanguageEntry[],
+  dateOfBirth: "1991-05-14",
+  willingToRelocate: true,
+  noticePeriod: "1 Calendar Month",
+  ownTransport: true,
+  currentRemuneration: {
+    amount: "78000",
+    currencyCode: "ZAR"
+  },
+  desiredRemuneration: {
+    amount: "95000",
+    currencyCode: "ZAR"
+  }
+} as const;
 
 function getStorageKey(email: string): string {
   return `${CANDIDATE_PROFILE_STORAGE_PREFIX}:${encodeURIComponent(email.trim().toLowerCase())}`;
@@ -45,6 +103,11 @@ function buildDefaultMoneyValue(currencyCode = "ZAR"): CandidateMoneyValue {
     amount: "",
     currencyCode
   };
+}
+
+function buildReviewSeedLocation() {
+  const city = findLocationCityInCountry("ZA", "Cape Town");
+  return city ? buildApplicationLocationValue(city) : null;
 }
 
 function getResumeCategory(index: number): CandidateFileCategory {
@@ -73,15 +136,6 @@ function getCurrentJobTitle(careerEntries: readonly PrototypeCareerEntry[]): str
   return currentEntry?.jobTitle || careerEntries.find((entry) => entry.jobTitle.trim())?.jobTitle || "";
 }
 
-function getProfileSkills(careerEntries: readonly PrototypeCareerEntry[]): string[] {
-  const seedSkills = ["React", "JavaScript", "Frontend Development", "UX Collaboration"];
-  const industrySkills = careerEntries
-    .map((entry) => entry.industry.trim())
-    .filter(Boolean);
-
-  return Array.from(new Set([...seedSkills, ...industrySkills])).slice(0, 8);
-}
-
 function normalizeProfileState(value: unknown, fallback: CandidateProfileState): CandidateProfileState {
   if (!value || typeof value !== "object") {
     return fallback;
@@ -95,6 +149,7 @@ function normalizeProfileState(value: unknown, fallback: CandidateProfileState):
     email: readString(parsed.email) || fallback.email,
     firstName: readString(parsed.firstName) || fallback.firstName,
     lastName: readString(parsed.lastName) || fallback.lastName,
+    coverImage: parsed.coverImage ?? fallback.coverImage,
     profilePicture: parsed.profilePicture ?? fallback.profilePicture,
     location: parsed.location ?? fallback.location,
     phoneNumber: parsed.phoneNumber ?? fallback.phoneNumber,
@@ -135,31 +190,45 @@ function buildFallbackProfile(session: CandidateSession): CandidateProfileState 
     buildPrototypeCareerHistoryState(referenceJobView, resumeState.selectedResumeId);
   const careerEntries = careerHistory.careerEntries;
   const educationEntries = careerHistory.educationEntries;
+  const southAfricanNationality = getNationalityByCountryCode("ZA");
 
   return {
     version: CANDIDATE_PROFILE_VERSION,
-    email: session.email,
-    firstName: session.firstName,
-    lastName: session.lastName,
+    email: PROTOTYPE_REVIEW_PROFILE_SEED.email,
+    firstName: PROTOTYPE_REVIEW_PROFILE_SEED.firstName,
+    lastName: PROTOTYPE_REVIEW_PROFILE_SEED.lastName,
+    coverImage: null,
     profilePicture: personalDetails?.profilePicture ?? null,
-    location: personalDetails?.location ?? null,
-    phoneNumber: personalDetails?.phoneNumber ?? "",
-    alternativeNumber: "",
-    currentJobTitle: getCurrentJobTitle(careerEntries),
-    aboutMe: personalDetails?.aboutMe ?? "",
-    skills: getProfileSkills(careerEntries),
-    languages: [],
+    location: personalDetails?.location ?? buildReviewSeedLocation(),
+    phoneNumber: personalDetails?.phoneNumber ?? PROTOTYPE_REVIEW_PROFILE_SEED.phoneNumber,
+    alternativeNumber: PROTOTYPE_REVIEW_PROFILE_SEED.alternativeNumber,
+    currentJobTitle: getCurrentJobTitle(careerEntries) || PROTOTYPE_REVIEW_PROFILE_SEED.currentJobTitle,
+    aboutMe: personalDetails?.aboutMe || PROTOTYPE_REVIEW_PROFILE_SEED.aboutMe,
+    skills: PROTOTYPE_REVIEW_PROFILE_SEED.skills.slice(),
+    languages: PROTOTYPE_REVIEW_PROFILE_SEED.languages.map((language) => ({ ...language })),
     careerEntries,
     educationEntries,
     files: buildFilesFromResumeState(resumeState),
-    nationality: null,
-    citizenship: null,
-    dateOfBirth: "",
-    willingToRelocate: null,
-    noticePeriod: "",
-    ownTransport: null,
-    currentRemuneration: buildDefaultMoneyValue(),
-    desiredRemuneration: buildDefaultMoneyValue(),
+    nationality: southAfricanNationality
+      ? {
+          countryCode: southAfricanNationality.countryCode,
+          flag: southAfricanNationality.flag,
+          nationality: southAfricanNationality.nationality
+        }
+      : null,
+    citizenship: southAfricanNationality
+      ? {
+          countryCode: southAfricanNationality.countryCode,
+          flag: southAfricanNationality.flag,
+          nationality: southAfricanNationality.nationality
+        }
+      : null,
+    dateOfBirth: PROTOTYPE_REVIEW_PROFILE_SEED.dateOfBirth,
+    willingToRelocate: PROTOTYPE_REVIEW_PROFILE_SEED.willingToRelocate,
+    noticePeriod: PROTOTYPE_REVIEW_PROFILE_SEED.noticePeriod,
+    ownTransport: PROTOTYPE_REVIEW_PROFILE_SEED.ownTransport,
+    currentRemuneration: { ...PROTOTYPE_REVIEW_PROFILE_SEED.currentRemuneration },
+    desiredRemuneration: { ...PROTOTYPE_REVIEW_PROFILE_SEED.desiredRemuneration },
     createdAt: timestamp,
     updatedAt: timestamp
   };

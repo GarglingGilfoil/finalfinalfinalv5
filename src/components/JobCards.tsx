@@ -34,6 +34,7 @@ interface OverflowChipListProps {
   defaultVisibleLimit: number;
   items: string[];
   title: string;
+  variant?: "default" | "profile";
 }
 
 export function FactGrid({ items, className }: FactGridProps): JSX.Element {
@@ -151,7 +152,8 @@ function getVisibleChipCount(
 function OverflowChipList({
   defaultVisibleLimit,
   items,
-  title
+  title,
+  variant = "default"
 }: OverflowChipListProps): JSX.Element | null {
   const chipsRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -281,6 +283,25 @@ function OverflowChipList({
   const hiddenCount = Math.max(0, items.length - visibleCount);
   const visibleItems = hiddenCount > 0 ? items.slice(0, visibleCount) : items;
   const overflowLabel = `+${hiddenCount} more`;
+  const chipClassName = [
+    "taxonomy-chip",
+    variant === "profile" ? "taxonomy-chip--profile" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const overflowChipClassName = [
+    "taxonomy-chip",
+    "taxonomy-chip--overflow",
+    variant === "profile" ? "taxonomy-chip--profile" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const overflowListChipClassName = [
+    "taxonomy-overflow__chip",
+    variant === "profile" ? "taxonomy-overflow__chip--profile" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
@@ -298,7 +319,7 @@ function OverflowChipList({
         <div className="taxonomy-group__chips taxonomy-group__chips--clamped" ref={chipsRef} role="list">
           {visibleItems.map((item, index) => (
             <span
-              className="taxonomy-chip"
+              className={chipClassName}
               key={`${title}-${item}-${index}`}
               role="listitem"
               title={item}
@@ -317,7 +338,7 @@ function OverflowChipList({
               aria-controls={overflowId}
               aria-expanded={isOpen}
               aria-haspopup={isMobile ? undefined : "dialog"}
-              className="taxonomy-chip taxonomy-chip--overflow"
+              className={overflowChipClassName}
               onClick={() => {
                 setIsOpen((current) => !current);
               }}
@@ -333,7 +354,7 @@ function OverflowChipList({
           <div className="taxonomy-group__chips taxonomy-group__chips--measure">
             {items.map((item, index) => (
               <span
-                className="taxonomy-chip"
+                className={chipClassName}
                 data-measure-item
                 key={`measure-${title}-${item}-${index}`}
                 title={item}
@@ -347,7 +368,7 @@ function OverflowChipList({
 
               return (
                 <span
-                  className="taxonomy-chip taxonomy-chip--overflow"
+                  className={overflowChipClassName}
                   data-measure-overflow={count}
                   key={`measure-overflow-${title}-${count}`}
                 >
@@ -387,7 +408,7 @@ function OverflowChipList({
             <ul className="taxonomy-overflow__list">
               {items.map((item, index) => (
                 <li key={`overflow-${title}-${item}-${index}`}>
-                  <span className="taxonomy-overflow__chip">{item}</span>
+                  <span className={overflowListChipClassName}>{item}</span>
                 </li>
               ))}
             </ul>
@@ -417,6 +438,7 @@ export function TokenGroup({ groups, className }: TokenGroupProps): JSX.Element 
               items={group.items}
               key={group.title}
               title={group.title}
+              variant="profile"
             />
           );
         }
@@ -428,6 +450,7 @@ export function TokenGroup({ groups, className }: TokenGroupProps): JSX.Element 
               items={group.items}
               key={group.title}
               title={group.title}
+              variant="profile"
             />
           );
         }

@@ -48,6 +48,10 @@ export function savePrototypeSession(session: CandidateSession): void {
   window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
+export function clearPrototypeSession(): void {
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
 export function readPrototypeSession(): CandidateSession | null {
   const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
 

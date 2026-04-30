@@ -214,18 +214,18 @@ export function detectPreferredLocationCountry(
     return userLocaleMatch;
   }
 
+  const browserTimeZoneMatch = detectFromTimeZone(context.browserTimeZone);
+
+  if (browserTimeZoneMatch) {
+    return browserTimeZoneMatch;
+  }
+
   for (const locale of context.browserLocales ?? []) {
     const browserLocaleMatch = detectFromLocale(locale, "browser-locale");
 
     if (browserLocaleMatch) {
       return browserLocaleMatch;
     }
-  }
-
-  const browserTimeZoneMatch = detectFromTimeZone(context.browserTimeZone);
-
-  if (browserTimeZoneMatch) {
-    return browserTimeZoneMatch;
   }
 
   const fallbackCountryCode =

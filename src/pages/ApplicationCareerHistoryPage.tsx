@@ -2200,7 +2200,7 @@ export function CareerEducationReviewList({
     educationEntries: PrototypeEducationEntry[];
   }) => void;
 }): JSX.Element {
-  const [openCareerId, setOpenCareerId] = useState<string | null>(careerEntries[0]?.id ?? null);
+  const [openCareerId, setOpenCareerId] = useState<string | null>(null);
   const [openEducationId, setOpenEducationId] = useState<string | null>(null);
   const [careerDrafts, setCareerDrafts] = useState<Record<string, PrototypeCareerEntry>>({});
   const [educationDrafts, setEducationDrafts] = useState<Record<string, PrototypeEducationEntry>>({});

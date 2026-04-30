@@ -69,6 +69,7 @@ export interface CandidateProfileState {
   email: string;
   firstName: string;
   lastName: string;
+  coverImage: CandidateProfilePictureValue | null;
   profilePicture: CandidateProfilePictureValue | null;
   location: CandidateLocationValue | null;
   phoneNumber: CandidatePhoneNumberValue | string;

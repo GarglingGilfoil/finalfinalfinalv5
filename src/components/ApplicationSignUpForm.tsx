@@ -175,14 +175,14 @@ export function ApplicationSignUpForm({
           value={password}
         />
 
+        <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Creating account…" : "Create account"}
+        </button>
+
         <p className="auth-form__legal">
           By proceeding, you accept our{" "}
           <a href="https://www.ditto.jobs/legal/terms">Terms of Service</a>.
         </p>
-
-        <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Creating account…" : "Create account"}
-        </button>
       </form>
 
       <p className="auth-card__footer">

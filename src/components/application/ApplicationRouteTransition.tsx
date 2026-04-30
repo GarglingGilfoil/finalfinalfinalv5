@@ -3,6 +3,7 @@ import {
   useContext,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -129,6 +130,28 @@ function isCurrentRoutePath(path: string): boolean {
   return nextUrl.pathname === window.location.pathname && nextUrl.search === window.location.search;
 }
 
+function shouldResetScrollOnRouteChange(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 720px)").matches
+  );
+}
+
+function resetMobileRouteScroll(): void {
+  if (!shouldResetScrollOnRouteChange()) {
+    return;
+  }
+
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "auto"
+  });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 export function ApplicationRouteTransitionProvider({
   children,
   route
@@ -137,6 +160,7 @@ export function ApplicationRouteTransitionProvider({
   const routeKey = getApplicationRouteKey(route);
   const previousRouteRef = useRef<AppRoute>(route);
   const previousRouteKeyRef = useRef(routeKey);
+  const scrollResetRouteKeyRef = useRef(routeKey);
   const pendingTransitionRef = useRef<PendingTransitionMeta | null>(null);
   const timersRef = useRef<number[]>([]);
   const [transitionMeta, setTransitionMeta] =
@@ -262,6 +286,15 @@ export function ApplicationRouteTransitionProvider({
       previousRouteKeyRef.current = routeKey;
     }
   }, [beginEnter, route, routeKey]);
+
+  useLayoutEffect(() => {
+    if (scrollResetRouteKeyRef.current === routeKey) {
+      return;
+    }
+
+    scrollResetRouteKeyRef.current = routeKey;
+    resetMobileRouteScroll();
+  }, [routeKey]);
 
   useEffect(() => {
     return () => {

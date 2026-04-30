@@ -90,22 +90,21 @@ export function ApplicationForgotPasswordForm({
           value={email}
         />
 
-        <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Sending reset link…" : "Send reset link"}
-        </button>
+        <div className="auth-form__actions auth-form__actions--split auth-form__actions--forgot-password">
+          <button
+            className="auth-mode-link auth-form__secondary-action"
+            onClick={() => {
+              onModeChange("signin");
+            }}
+            type="button"
+          >
+            Back to sign in
+          </button>
+          <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Sending reset link…" : "Send reset link"}
+          </button>
+        </div>
       </form>
-
-      <p className="auth-card__footer">
-        <button
-          className="auth-mode-link"
-          onClick={() => {
-            onModeChange("signin");
-          }}
-          type="button"
-        >
-          Back to sign in
-        </button>
-      </p>
     </div>
   );
 }

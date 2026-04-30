@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,17 +15,17 @@ import {
   Edit3,
   Eye,
   FileText,
-  Plus,
   Trash2,
   Upload,
   X
 } from "lucide-react";
-import { ApplicationLocationField } from "../components/ApplicationLocationField";
+import { createPortal } from "react-dom";
 import {
   ApplicationPhoneField,
   getCandidatePhoneNumberError
 } from "../components/ApplicationPhoneField";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
+import { ProfileImageUploader } from "../components/ProfileImageUploader";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { CareerEducationReviewList } from "./ApplicationCareerHistoryPage";
 import type {
@@ -33,12 +34,9 @@ import type {
   CandidateProfilePictureValue,
   CandidateSession,
   PrototypeCareerEntry,
-  PrototypeCareerLevel,
-  PrototypeEducationEntry,
-  PrototypeEducationQualification
+  PrototypeEducationEntry
 } from "../contracts/application";
 import type {
-  CandidateFileCategory,
   CandidateLanguageEntry,
   CandidateLanguageProficiency,
   CandidateMoneyValue,
@@ -47,8 +45,8 @@ import type {
   CandidateProfileFile,
   CandidateProfileState
 } from "../contracts/candidate";
-import { LANGUAGE_OPTIONS, searchLanguages } from "../lib/languages";
-import { getNationalityByCountryCode, searchNationalities } from "../lib/nationalities";
+import { searchLanguages } from "../lib/languages";
+import { searchNationalities } from "../lib/nationalities";
 import { searchCurrencies } from "../lib/currencies";
 import {
   buildProfileUploadFile,
@@ -62,7 +60,7 @@ import {
 } from "../lib/prototype-profile-assets";
 import { readPrototypeResumeAsset } from "../lib/prototype-resume-assets";
 import { readPrototypeSession } from "../lib/prototype-auth";
-import { buildApplicationAuthPath, buildCandidateProfilePath } from "../lib/router";
+import { buildApplicationAuthPath } from "../lib/router";
 
 type ProfileSectionId =
   | "identity"
@@ -78,45 +76,27 @@ type ProfileSectionId =
   | "personal";
 
 type ProfileTabId =
-  | "career-education"
   | "about"
-  | "skills-languages"
-  | "documents"
-  | "preferences"
-  | "personal";
+  | "experience"
+  | "files";
 
 type ValidationErrors = Record<string, string | undefined>;
 
 const PROFILE_TABS: Array<{ id: ProfileTabId; label: string; description: string }> = [
   {
-    id: "career-education",
+    id: "about",
+    label: "About",
+    description: "Manage your contact details, professional snapshot, and key profile context."
+  },
+  {
+    id: "experience",
     label: "Experience",
     description: "Review the roles and education that form your professional story."
   },
   {
-    id: "about",
-    label: "About",
-    description: "Manage the identity, summary, and contact details recruiters see first."
-  },
-  {
-    id: "skills-languages",
-    label: "Skills",
-    description: "Add capabilities and languages that help match you to better roles."
-  },
-  {
-    id: "documents",
-    label: "Documents",
-    description: "Keep your CV, certificates, portfolio, and supporting files in one place."
-  },
-  {
-    id: "preferences",
-    label: "Preferences",
-    description: "Share practical work preferences and remuneration context when useful."
-  },
-  {
-    id: "personal",
-    label: "Private Details",
-    description: "Sensitive eligibility information stays separate from your public profile."
+    id: "files",
+    label: "Files",
+    description: "Manage your files and keep your resume up to date."
   }
 ];
 
@@ -124,37 +104,13 @@ const REFERENCE_JOB_ID = "196794136";
 const PROFILE_FILE_ACCEPT =
   ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp";
 const PROFILE_FILE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const PROFILE_FILE_NAME_MAX_LENGTH = 50;
 
 const LANGUAGE_PROFICIENCY_OPTIONS: CandidateLanguageProficiency[] = [
   "Native or bilingual proficiency",
   "Full professional proficiency",
   "Professional working proficiency",
   "Limited working proficiency"
-];
-
-const CAREER_LEVEL_OPTIONS: PrototypeCareerLevel[] = [
-  "Intern / Apprentice",
-  "Entry Level",
-  "Junior",
-  "Mid Level",
-  "Senior",
-  "Lead",
-  "Principal",
-  "Manager",
-  "Director",
-  "Vice President",
-  "Executive / C-Level"
-];
-
-const EDUCATION_QUALIFICATION_OPTIONS: PrototypeEducationQualification[] = [
-  "Certificate",
-  "Diploma",
-  "Degree",
-  "Post-Graduate",
-  "Honours",
-  "Masters",
-  "Doctorate",
-  "Other"
 ];
 
 const NOTICE_PERIOD_OPTIONS: CandidateNoticePeriod[] = [
@@ -172,39 +128,40 @@ const NOTICE_PERIOD_OPTIONS: CandidateNoticePeriod[] = [
   "3 Calendar Months"
 ];
 
-const FILE_CATEGORY_OPTIONS: CandidateFileCategory[] = [
-  "CV / Resume",
-  "Cover Letter",
-  "Certificate",
-  "Portfolio",
-  "Other"
-];
-
-const MONTH_OPTIONS = [
-  { label: "Jan", value: "01" },
-  { label: "Feb", value: "02" },
-  { label: "Mar", value: "03" },
-  { label: "Apr", value: "04" },
-  { label: "May", value: "05" },
-  { label: "Jun", value: "06" },
-  { label: "Jul", value: "07" },
-  { label: "Aug", value: "08" },
-  { label: "Sep", value: "09" },
-  { label: "Oct", value: "10" },
-  { label: "Nov", value: "11" },
-  { label: "Dec", value: "12" }
-] as const;
-
-const YEAR_OPTIONS = Array.from({ length: 58 }, (_, index) =>
-  String(new Date().getFullYear() - index)
-);
-
 function formatFileSize(size: number): string {
   if (size < 1024 * 1024) {
     return `${Math.max(1, Math.round(size / 1024))} KB`;
   }
 
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileExtensionFromName(fileName: string, fallback: string): string {
+  const extension = fileName.trim().split(".").pop();
+
+  if (!extension || extension === fileName.trim()) {
+    return fallback;
+  }
+
+  return extension.toUpperCase();
+}
+
+function buildPdfPreviewUrl(objectUrl: string): string {
+  return `${objectUrl}#navpanes=0&zoom=100`;
+}
+
+function formatFileUploadedDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "recently";
+  }
+
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(date);
 }
 
 function stripHtml(value: string): string {
@@ -221,30 +178,6 @@ function buildInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || "DU";
 }
 
-function formatUpdatedAt(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Recently";
-  }
-
-  return new Intl.DateTimeFormat("en-ZA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(date);
-}
-
-function getDescriptionPreview(value: string, fallback: string): string {
-  const text = stripHtml(value);
-
-  if (!text) {
-    return fallback;
-  }
-
-  return text.length > 260 ? `${text.slice(0, 260).trim()}...` : text;
-}
-
 function normalizeSkill(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -253,36 +186,145 @@ function isPhoneEmpty(value: CandidatePhoneNumberValue | string): boolean {
   return typeof value === "string" ? !value.trim() : !value.raw.trim();
 }
 
-function makeEmptyCareerEntry(): PrototypeCareerEntry {
-  return {
-    id: `career-profile-${Date.now()}`,
-    jobTitle: "",
-    company: "",
-    location: null,
-    startMonth: "",
-    startYear: "",
-    endMonth: "",
-    endYear: "",
-    isCurrent: false,
-    industry: "",
-    careerLevel: "",
-    description: "",
-    reasonForLeaving: "",
-    source: "manual"
-  };
+function formatPhoneValue(value: CandidatePhoneNumberValue | string): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  return value.e164?.trim() || value.raw.trim();
 }
 
-function makeEmptyEducationEntry(): PrototypeEducationEntry {
-  return {
-    id: `education-profile-${Date.now()}`,
-    institution: "",
-    qualification: "",
-    fieldOfStudy: "",
-    startYear: "",
-    endYear: "",
-    description: "",
-    source: "manual"
-  };
+function formatBooleanValue(value: boolean | null): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  return value ? "Yes" : "No";
+}
+
+function formatDateValue(value: string): string | null {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(date);
+}
+
+function formatMoneyValue(value: CandidateMoneyValue): string | null {
+  const amount = value.amount.trim();
+
+  if (!amount) {
+    return null;
+  }
+
+  const numericAmount = Number(amount.replace(/[,\s]/g, ""));
+  const formattedAmount = Number.isFinite(numericAmount)
+    ? new Intl.NumberFormat("en-ZA", { maximumFractionDigits: 0 }).format(numericAmount)
+    : amount;
+
+  return `${value.currencyCode || "ZAR"} ${formattedAmount} per month`;
+}
+
+function getCareerDateScore(month: string, year: string): number {
+  const yearNumber = Number(year);
+  const monthNumber = Number(month || "12");
+
+  if (!Number.isFinite(yearNumber)) {
+    return 0;
+  }
+
+  return yearNumber * 12 + (Number.isFinite(monthNumber) ? monthNumber : 12);
+}
+
+function getMostRecentCareerRole(careerEntries: readonly PrototypeCareerEntry[]): {
+  sourceLabel: string;
+  title: string;
+} | null {
+  const entriesWithTitle = careerEntries.filter((entry) => entry.jobTitle.trim());
+
+  if (!entriesWithTitle.length) {
+    return null;
+  }
+
+  const sortByStartDate = (a: PrototypeCareerEntry, b: PrototypeCareerEntry): number =>
+    getCareerDateScore(b.startMonth, b.startYear) - getCareerDateScore(a.startMonth, a.startYear);
+
+  const currentEntry = entriesWithTitle
+    .filter((entry) => entry.isCurrent)
+    .sort(sortByStartDate)[0];
+
+  if (currentEntry) {
+    return {
+      sourceLabel: "Current role from Experience",
+      title: currentEntry.jobTitle.trim()
+    };
+  }
+
+  const recentEntry = entriesWithTitle
+    .slice()
+    .sort(
+      (a, b) =>
+        getCareerDateScore(b.endMonth || b.startMonth, b.endYear || b.startYear) -
+        getCareerDateScore(a.endMonth || a.startMonth, a.endYear || a.startYear)
+    )[0];
+
+  return recentEntry
+    ? {
+        sourceLabel: "Most recent role from Experience",
+        title: recentEntry.jobTitle.trim()
+      }
+    : null;
+}
+
+function getPrimaryCareerEntry(careerEntries: readonly PrototypeCareerEntry[]): PrototypeCareerEntry | null {
+  if (!careerEntries.length) {
+    return null;
+  }
+
+  const sortByStartDate = (a: PrototypeCareerEntry, b: PrototypeCareerEntry): number =>
+    getCareerDateScore(b.startMonth, b.startYear) - getCareerDateScore(a.startMonth, a.startYear);
+
+  const currentEntry = careerEntries
+    .filter((entry) => entry.isCurrent)
+    .sort(sortByStartDate)[0];
+
+  if (currentEntry) {
+    return currentEntry;
+  }
+
+  return careerEntries
+    .slice()
+    .sort(
+      (a, b) =>
+        getCareerDateScore(b.endMonth || b.startMonth, b.endYear || b.startYear) -
+        getCareerDateScore(a.endMonth || a.startMonth, a.endYear || a.startYear)
+    )[0] ?? null;
+}
+
+function getPrimaryEducationEntry(
+  educationEntries: readonly PrototypeEducationEntry[]
+): PrototypeEducationEntry | null {
+  if (!educationEntries.length) {
+    return null;
+  }
+
+  return educationEntries
+    .slice()
+    .sort(
+      (a, b) =>
+        getCareerDateScore("", b.endYear || b.startYear) -
+        getCareerDateScore("", a.endYear || a.startYear)
+    )[0] ?? null;
 }
 
 function validateEmail(value: string): string | undefined {
@@ -315,9 +357,7 @@ function validateProfileSection(
 
   if (sectionId === "contact") {
     errors.email = validateEmail(profile.email);
-    if (isPhoneEmpty(profile.phoneNumber)) {
-      errors.phoneNumber = "Phone number is required.";
-    } else {
+    if (!isPhoneEmpty(profile.phoneNumber)) {
       errors.phoneNumber = getCandidatePhoneNumberError(profile.phoneNumber, profile.location?.countryCode);
     }
 
@@ -397,39 +437,116 @@ function validateProfileSection(
 }
 
 function calculateCompletion(profile: CandidateProfileState) {
+  const primaryCareerEntry = getPrimaryCareerEntry(profile.careerEntries);
+  const primaryEducationEntry = getPrimaryEducationEntry(profile.educationEntries);
+  const hasCompleteLanguage = profile.languages.some(
+    (language) => Boolean(language.languageCode && language.languageName.trim() && language.proficiency)
+  );
+  const hasMoneyValue = (value: CandidateMoneyValue): boolean =>
+    Boolean(value.amount.trim() && value.currencyCode.trim());
+  const hasCareerDates = primaryCareerEntry
+    ? Boolean(
+        primaryCareerEntry.startMonth &&
+          primaryCareerEntry.startYear &&
+          (primaryCareerEntry.isCurrent || (primaryCareerEntry.endMonth && primaryCareerEntry.endYear))
+      )
+    : false;
+  const hasEducationYears = primaryEducationEntry
+    ? Boolean(primaryEducationEntry.startYear && primaryEducationEntry.endYear)
+    : false;
   const completionItems = [
-    { id: "avatar", target: "identity", label: "Profile picture", complete: Boolean(profile.profilePicture) },
-    {
-      id: "name",
-      target: "identity",
-      label: "Name",
-      complete: Boolean(profile.firstName.trim() && profile.lastName.trim())
-    },
-    { id: "location", target: "identity", label: "Location", complete: Boolean(profile.location) },
-    { id: "phone", target: "contact", label: "Phone number", complete: !isPhoneEmpty(profile.phoneNumber) },
-    {
-      id: "current-title",
-      target: "identity",
-      label: "Current title",
-      complete: Boolean(profile.currentJobTitle.trim())
-    },
+    { id: "cover", target: "about", label: "Cover image", complete: Boolean(profile.coverImage) },
+    { id: "avatar", target: "about", label: "Profile picture", complete: Boolean(profile.profilePicture) },
+    { id: "first-name", target: "about", label: "First name", complete: Boolean(profile.firstName.trim()) },
+    { id: "last-name", target: "about", label: "Last name", complete: Boolean(profile.lastName.trim()) },
+    { id: "email", target: "contact", label: "Email address", complete: Boolean(validateEmail(profile.email) === undefined) },
+    { id: "location", target: "about", label: "Location", complete: Boolean(profile.location) },
     { id: "about", target: "about", label: "About Me", complete: Boolean(stripHtml(profile.aboutMe)) },
     { id: "skills", target: "skills", label: "Skills", complete: profile.skills.length > 0 },
-    { id: "languages", target: "languages", label: "Languages", complete: profile.languages.length > 0 },
-    { id: "career", target: "career", label: "Career history", complete: profile.careerEntries.length > 0 },
-    { id: "education", target: "education", label: "Education", complete: profile.educationEntries.length > 0 },
-    { id: "files", target: "files", label: "Files", complete: profile.files.length > 0 },
+    { id: "languages", target: "languages", label: "Language and proficiency", complete: hasCompleteLanguage },
     {
-      id: "work",
-      target: "work",
-      label: "Work preferences",
-      complete: Boolean(profile.noticePeriod && profile.willingToRelocate !== null)
+      id: "career-title",
+      target: "career",
+      label: "Career job title",
+      complete: Boolean(primaryCareerEntry?.jobTitle.trim())
     },
     {
-      id: "remuneration",
+      id: "career-company",
+      target: "career",
+      label: "Career company",
+      complete: Boolean(primaryCareerEntry?.company.trim())
+    },
+    { id: "career-dates", target: "career", label: "Career dates", complete: hasCareerDates },
+    {
+      id: "career-industry",
+      target: "career",
+      label: "Industry",
+      complete: Boolean(primaryCareerEntry?.industry.trim())
+    },
+    {
+      id: "career-level",
+      target: "career",
+      label: "Career level",
+      complete: Boolean(primaryCareerEntry?.careerLevel)
+    },
+    {
+      id: "career-description",
+      target: "career",
+      label: "Career description",
+      complete: Boolean(stripHtml(primaryCareerEntry?.description ?? ""))
+    },
+    {
+      id: "education-institution",
+      target: "education",
+      label: "Education institution",
+      complete: Boolean(primaryEducationEntry?.institution.trim())
+    },
+    {
+      id: "education-qualification",
+      target: "education",
+      label: "Qualification",
+      complete: Boolean(primaryEducationEntry?.qualification)
+    },
+    {
+      id: "education-field",
+      target: "education",
+      label: "Field of study",
+      complete: Boolean(primaryEducationEntry?.fieldOfStudy.trim())
+    },
+    { id: "education-years", target: "education", label: "Education years", complete: hasEducationYears },
+    { id: "files", target: "files", label: "Files", complete: profile.files.length > 0 },
+    { id: "date-of-birth", target: "personal", label: "Date of birth", complete: Boolean(profile.dateOfBirth) },
+    { id: "nationality", target: "personal", label: "Nationality", complete: Boolean(profile.nationality) },
+    { id: "citizenship", target: "personal", label: "Citizenship", complete: Boolean(profile.citizenship) },
+    {
+      id: "relocation",
+      target: "work",
+      label: "Relocation preference",
+      complete: profile.willingToRelocate !== null
+    },
+    {
+      id: "notice-period",
+      target: "work",
+      label: "Notice period",
+      complete: Boolean(profile.noticePeriod)
+    },
+    {
+      id: "own-transport",
+      target: "work",
+      label: "Own transport",
+      complete: profile.ownTransport !== null
+    },
+    {
+      id: "current-remuneration",
+      target: "remuneration",
+      label: "Current remuneration",
+      complete: hasMoneyValue(profile.currentRemuneration)
+    },
+    {
+      id: "desired-remuneration",
       target: "remuneration",
       label: "Desired remuneration",
-      complete: Boolean(profile.desiredRemuneration.amount.trim())
+      complete: hasMoneyValue(profile.desiredRemuneration)
     }
   ];
   const completedCount = completionItems.filter((item) => item.complete).length;
@@ -442,38 +559,54 @@ function calculateCompletion(profile: CandidateProfileState) {
 }
 
 function TextField({
+  disabled = false,
   error,
+  helper,
   label,
-  onChange,
+  onChange = () => undefined,
   placeholder,
   type = "text",
   value
 }: {
+  disabled?: boolean;
   error?: string;
+  helper?: string;
   label: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
   type?: "date" | "email" | "number" | "text";
   value: string;
 }): JSX.Element {
   const id = useId();
   const errorId = `${id}-error`;
+  const helperId = `${id}-helper`;
+  const describedBy = [helper ? helperId : null, error ? errorId : null].filter(Boolean).join(" ");
 
   return (
     <label className="auth-field candidate-profile-field">
       <span className="auth-field__label">{label}</span>
       <input
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         aria-invalid={Boolean(error)}
         className={["auth-field__input", error ? "auth-field__input--error" : ""]
           .filter(Boolean)
           .join(" ")}
+        disabled={disabled}
         id={id}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          if (!disabled) {
+            onChange(event.target.value);
+          }
+        }}
         placeholder={placeholder}
         type={type}
         value={value}
       />
+      {helper ? (
+        <span className="candidate-profile-field__helper" id={helperId}>
+          {helper}
+        </span>
+      ) : null}
       {error ? (
         <span className="auth-field__error" id={errorId}>
           {error}
@@ -536,7 +669,8 @@ function EditableProfileSection({
   onSave,
   savedSection,
   support,
-  title
+  title,
+  variant = "default"
 }: {
   children: ReactNode;
   editingSection: ProfileSectionId | null;
@@ -546,8 +680,9 @@ function EditableProfileSection({
   onEdit: (sectionId: ProfileSectionId) => void;
   onSave: (sectionId: ProfileSectionId) => void;
   savedSection: ProfileSectionId | null;
-  support: string;
+  support?: string;
   title: string;
+  variant?: "default" | "story" | "panel";
 }): JSX.Element {
   const isEditing = editingSection === id;
   const headingId = `profile-section-${id}`;
@@ -555,14 +690,20 @@ function EditableProfileSection({
   return (
     <section
       aria-labelledby={headingId}
-      className="candidate-profile-section surface-card"
+      className={[
+        "candidate-profile-section",
+        "surface-card",
+        variant !== "default" ? `candidate-profile-section--${variant}` : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-editing={isEditing || undefined}
       id={id}
     >
       <header className="candidate-profile-section__header">
         <div>
           <h2 id={headingId}>{title}</h2>
-          <p>{support}</p>
+          {support ? <p>{support}</p> : null}
         </div>
         <div className="candidate-profile-section__actions">
           {savedSection === id && !isEditing ? (
@@ -570,21 +711,7 @@ function EditableProfileSection({
               Saved
             </span>
           ) : null}
-          {isEditing ? (
-            <>
-              <button className="button button--ghost" onClick={onCancel} type="button">
-                Cancel
-              </button>
-              <button
-                className="button button--job-primary"
-                disabled={!isDirty}
-                onClick={() => onSave(id)}
-                type="button"
-              >
-                Save
-              </button>
-            </>
-          ) : (
+          {!isEditing ? (
             <button
               className="button button--ghost candidate-profile-section__edit"
               onClick={() => onEdit(id)}
@@ -593,11 +720,413 @@ function EditableProfileSection({
               <Edit3 aria-hidden="true" className="candidate-profile-section__edit-icon" />
               Edit
             </button>
-          )}
+          ) : null}
         </div>
       </header>
       {children}
+      {isEditing ? (
+        <div className="candidate-profile-section__footer">
+          <button
+            className="button button--ghost candidate-profile-section__footer-button"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="button candidate-profile-section__footer-button candidate-profile-section__footer-button--primary"
+            disabled={!isDirty}
+            onClick={() => onSave(id)}
+            type="button"
+          >
+            Save
+          </button>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function ProfileDetailRows({
+  empty,
+  rows
+}: {
+  empty?: ReactNode;
+  rows: Array<{ label: string; value: ReactNode | null | undefined }>;
+}): JSX.Element {
+  const visibleRows = rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+
+  if (!visibleRows.length) {
+    return <div className="candidate-profile-soft-empty">{empty ?? "Not shared yet"}</div>;
+  }
+
+  return (
+    <dl className="candidate-profile-detail-rows">
+      {visibleRows.map((row) => (
+        <div className="candidate-profile-detail-row" key={row.label}>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ProfileInlinePrompt({ children }: { children: ReactNode }): JSX.Element {
+  return <span className="candidate-profile-inline-prompt">{children}</span>;
+}
+
+function ProfileAboutMePreview({ value }: { value: string }): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldShowToggle, setShouldShowToggle] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [value]);
+
+  useEffect(() => {
+    const contentElement = contentRef.current;
+
+    if (!contentElement) {
+      setShouldShowToggle(false);
+      return;
+    }
+
+    const updateToggleVisibility = (): void => {
+      const styles = window.getComputedStyle(contentElement);
+      const fontSize = Number.parseFloat(styles.fontSize) || 16;
+      const lineHeight = Number.parseFloat(styles.lineHeight) || fontSize * 1.72;
+      const previewHeight = lineHeight * 8;
+
+      setShouldShowToggle(contentElement.scrollHeight > previewHeight + 2);
+    };
+
+    updateToggleVisibility();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateToggleVisibility);
+      return () => {
+        window.removeEventListener("resize", updateToggleVisibility);
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(updateToggleVisibility);
+    resizeObserver.observe(contentElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [value]);
+
+  return (
+    <div
+      className={[
+        "candidate-profile-about-preview",
+        isExpanded && shouldShowToggle ? "candidate-profile-about-preview--expanded" : "",
+        shouldShowToggle ? "candidate-profile-about-preview--has-toggle" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div
+        className="candidate-profile-rich-preview candidate-profile-story__summary candidate-profile-about-preview__content"
+        dangerouslySetInnerHTML={{ __html: value }}
+        ref={contentRef}
+      />
+      {shouldShowToggle ? (
+        <div className="candidate-profile-about-preview__footer">
+          <button
+            className="career-review-see-more"
+            onClick={() => setIsExpanded((current) => !current)}
+            type="button"
+          >
+            {isExpanded ? "See less" : "See more"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function doesChipSetFitWithinRows(
+  widths: number[],
+  containerWidth: number,
+  gap: number,
+  maxRows: number
+): boolean {
+  if (!containerWidth) {
+    return true;
+  }
+
+  let row = 1;
+  let usedWidth = 0;
+
+  for (const width of widths) {
+    const chipWidth = Math.min(Math.ceil(width), containerWidth);
+    const nextWidth = usedWidth === 0 ? chipWidth : usedWidth + gap + chipWidth;
+
+    if (nextWidth <= containerWidth + 0.5) {
+      usedWidth = nextWidth;
+      continue;
+    }
+
+    row += 1;
+
+    if (row > maxRows) {
+      return false;
+    }
+
+    usedWidth = chipWidth;
+  }
+
+  return true;
+}
+
+function getVisibleProfileSkillCount(
+  widths: number[],
+  overflowWidths: Map<number, number>,
+  containerWidth: number,
+  gap: number,
+  maxRows: number
+): number {
+  const total = widths.length;
+
+  if (doesChipSetFitWithinRows(widths, containerWidth, gap, maxRows)) {
+    return total;
+  }
+
+  for (let visibleCount = total - 1; visibleCount >= 0; visibleCount -= 1) {
+    const hiddenCount = total - visibleCount;
+    const overflowWidth = overflowWidths.get(hiddenCount);
+
+    if (overflowWidth === undefined) {
+      continue;
+    }
+
+    if (
+      doesChipSetFitWithinRows(
+        [...widths.slice(0, visibleCount), overflowWidth],
+        containerWidth,
+        gap,
+        maxRows
+      )
+    ) {
+      return visibleCount;
+    }
+  }
+
+  return 0;
+}
+
+function ProfileSkillOverflowList({ skills }: { skills: string[] }): JSX.Element {
+  const chipsRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const overflowId = useId();
+  const [visibleCount, setVisibleCount] = useState(skills.length);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const chipsElement = chipsRef.current;
+    const measureElement = measureRef.current;
+
+    if (!chipsElement || !measureElement || skills.length === 0) {
+      setVisibleCount(skills.length);
+      return;
+    }
+
+    let animationFrame = 0;
+
+    const measureOverflow = (): void => {
+      const containerWidth = chipsElement.clientWidth;
+
+      if (!containerWidth) {
+        return;
+      }
+
+      const computedStyles = window.getComputedStyle(chipsElement);
+      const gap = Number.parseFloat(computedStyles.columnGap || computedStyles.gap || "0");
+      const itemWidths = Array.from(
+        measureElement.querySelectorAll<HTMLElement>("[data-profile-skill-measure]")
+      ).map((node) => Math.ceil(node.getBoundingClientRect().width));
+      const overflowWidths = new Map<number, number>();
+
+      Array.from(
+        measureElement.querySelectorAll<HTMLElement>("[data-profile-skill-overflow]")
+      ).forEach((node) => {
+        const hiddenCount = Number(node.dataset.profileSkillOverflow);
+        overflowWidths.set(hiddenCount, Math.ceil(node.getBoundingClientRect().width));
+      });
+
+      const nextVisibleCount = getVisibleProfileSkillCount(
+        itemWidths,
+        overflowWidths,
+        containerWidth,
+        gap,
+        3
+      );
+
+      setVisibleCount((current) => (current === nextVisibleCount ? current : nextVisibleCount));
+    };
+
+    const requestMeasure = (): void => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(measureOverflow);
+    };
+
+    requestMeasure();
+
+    const resizeObserver = new ResizeObserver(() => requestMeasure());
+
+    resizeObserver.observe(chipsElement);
+    resizeObserver.observe(measureElement);
+
+    if ("fonts" in document) {
+      void document.fonts.ready.then(() => requestMeasure());
+    }
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+    };
+  }, [skills]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    const handlePointerDown = (event: MouseEvent): void => {
+      const target = event.target as Node;
+
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (visibleCount >= skills.length && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isOpen, skills.length, visibleCount]);
+
+  const hiddenCount = Math.max(0, skills.length - visibleCount);
+  const visibleSkills = hiddenCount > 0 ? skills.slice(0, visibleCount) : skills;
+  const overflowLabel = `+${hiddenCount} more`;
+
+  return (
+    <div
+      className={[
+        "candidate-profile-skill-overflow",
+        isOpen ? "candidate-profile-skill-overflow--open" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div
+        className="candidate-profile-chip-list candidate-profile-chip-list--profile candidate-profile-chip-list--clamped"
+        ref={chipsRef}
+        role="list"
+      >
+        {visibleSkills.map((skill) => (
+          <span className="candidate-profile-chip" key={skill} role="listitem" title={skill}>
+            {skill}
+          </span>
+        ))}
+
+        {hiddenCount > 0 ? (
+          <button
+            aria-controls={overflowId}
+            aria-expanded={isOpen}
+            aria-haspopup="dialog"
+            aria-label={
+              isOpen
+                ? "Hide additional skills"
+                : `Show ${hiddenCount} more skills`
+            }
+            className="candidate-profile-chip candidate-profile-chip--overflow"
+            onClick={() => setIsOpen((current) => !current)}
+            ref={triggerRef}
+            type="button"
+          >
+            {overflowLabel}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="candidate-profile-chip-measure" ref={measureRef} aria-hidden="true">
+        <div className="candidate-profile-chip-list candidate-profile-chip-list--profile">
+          {skills.map((skill) => (
+            <span
+              className="candidate-profile-chip"
+              data-profile-skill-measure
+              key={`measure-${skill}`}
+              title={skill}
+            >
+              {skill}
+            </span>
+          ))}
+
+          {Array.from({ length: skills.length }, (_, index) => {
+            const count = index + 1;
+
+            return (
+              <span
+                className="candidate-profile-chip candidate-profile-chip--overflow"
+                data-profile-skill-overflow={count}
+                key={`measure-overflow-${count}`}
+              >
+                +{count} more
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {hiddenCount > 0 && isOpen ? (
+        <div
+          aria-label="All skills"
+          className="candidate-profile-skill-popover candidate-profile-skill-popover--floating"
+          id={overflowId}
+          ref={panelRef}
+          role="dialog"
+        >
+          <div className="candidate-profile-skill-popover__header">
+            <p>Skills</p>
+            <button onClick={() => setIsOpen(false)} type="button">
+              Show less
+            </button>
+          </div>
+          <div className="candidate-profile-chip-list candidate-profile-chip-list--profile">
+            {skills.map((skill) => (
+              <span className="candidate-profile-chip" key={`overflow-${skill}`}>
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -608,124 +1137,133 @@ function CandidateProfileAvatar({
   onChange: (value: CandidateProfilePictureValue | null) => void;
   profile: CandidateProfileState;
 }): JSX.Element {
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const initials = buildInitials(profile.firstName, profile.lastName);
 
-  const handleFile = (event: ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      return;
-    }
-
-    if (file.size > PROFILE_FILE_MAX_SIZE_BYTES) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        return;
-      }
-
-      onChange({
-        dataUrl: reader.result,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        updatedAt: new Date().toISOString()
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
-    <div className="candidate-profile-avatar">
-      <button
-        aria-label="Update profile picture"
-        className="candidate-profile-avatar__button"
-        onClick={() => inputRef.current?.click()}
-        type="button"
-      >
-        {profile.profilePicture?.dataUrl ? (
-          <img alt="" src={profile.profilePicture.dataUrl} />
-        ) : (
-          <span>{initials}</span>
-        )}
-        <span className="candidate-profile-avatar__edit" aria-hidden="true">
-          <Edit3 />
-        </span>
-      </button>
-      <input
-        accept="image/jpeg,image/png,image/webp"
-        className="sr-only"
-        onChange={handleFile}
-        ref={inputRef}
-        type="file"
-      />
-    </div>
+    <ProfileImageUploader
+      cropShape="circle"
+      editorDescription="Crop and rotate before adding it to your profile."
+      editorTitle="Adjust profile picture"
+      onChange={onChange}
+      outputHeight={720}
+      outputWidth={720}
+    >
+      {({ describedBy, error, feedbackId, helpId, openFileDialog, triggerRef }) => (
+        <div className="candidate-profile-avatar">
+          <span className="sr-only" id={helpId}>Use a JPG, PNG, or WebP image under 5MB.</span>
+          <button
+            aria-describedby={describedBy || undefined}
+            aria-label={profile.profilePicture ? "Replace profile picture" : "Add profile picture"}
+            className="candidate-profile-avatar__button"
+            onClick={openFileDialog}
+            ref={triggerRef}
+            type="button"
+          >
+            {profile.profilePicture?.dataUrl ? (
+              <img alt="" src={profile.profilePicture.dataUrl} />
+            ) : (
+              <span>{initials}</span>
+            )}
+            <span className="candidate-profile-avatar__edit" aria-hidden="true">
+              <Edit3 />
+            </span>
+          </button>
+          {error ? (
+            <p className="candidate-profile-image-error" id={feedbackId} role="status">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      )}
+    </ProfileImageUploader>
   );
 }
 
 function CandidateProfileHeader({
   onAvatarChange,
+  onCoverChange,
   onOpenAbout,
-  onOpenCareer,
   profile
 }: {
   onAvatarChange: (value: CandidateProfilePictureValue | null) => void;
+  onCoverChange: (value: CandidateProfilePictureValue | null) => void;
   onOpenAbout: () => void;
-  onOpenCareer: () => void;
   profile: CandidateProfileState;
 }): JSX.Element {
   const fullName = `${profile.firstName} ${profile.lastName}`.trim();
-  const completion = calculateCompletion(profile);
-  const professionalSubtitle =
-    [profile.currentJobTitle, profile.location?.label].filter(Boolean).join(" · ") ||
-    "Professional profile";
-  const aboutPreview = getDescriptionPreview(
-    profile.aboutMe,
-    "Add a short professional summary so recruiters understand your strengths faster."
-  );
+  const professionalSubtitle = [
+    profile.currentJobTitle || "Current role not added",
+    profile.location?.label || "Location not added"
+  ].join(" · ");
 
   return (
-    <section className="candidate-profile-hero surface-card">
+    <section className="candidate-profile-hero candidate-profile-hero--social surface-card">
+      <ProfileImageUploader
+        cropShape="wide"
+        editorDescription="Crop and rotate before adding it as your profile cover."
+        editorTitle="Adjust cover image"
+        onChange={onCoverChange}
+        outputHeight={400}
+        outputWidth={1600}
+      >
+        {({ describedBy, error, feedbackId, helpId, openFileDialog, triggerRef }) => (
+          <div className="candidate-profile-cover">
+            {profile.coverImage?.dataUrl ? <img alt="" src={profile.coverImage.dataUrl} /> : null}
+            <span className="sr-only" id={helpId}>Use a wide JPG, PNG, or WebP image under 5MB.</span>
+            <button
+              aria-describedby={describedBy || undefined}
+              className="candidate-profile-cover__edit"
+              onClick={openFileDialog}
+              ref={triggerRef}
+              type="button"
+            >
+              <Edit3 aria-hidden="true" />
+              {profile.coverImage ? "Change cover" : "Add cover"}
+            </button>
+            {error ? (
+              <p className="candidate-profile-cover__error" id={feedbackId} role="status">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        )}
+      </ProfileImageUploader>
       <div className="candidate-profile-hero__identity">
         <CandidateProfileAvatar onChange={onAvatarChange} profile={profile} />
-        <div className="candidate-profile-hero__copy">
-          <p className="section-kicker">Candidate profile</p>
-          <h1>{fullName || "Your profile"}</h1>
-          <p>{professionalSubtitle}</p>
-          <div className="candidate-profile-hero__meta">
-            {profile.location?.countryName ? <span>{profile.location.countryName}</span> : null}
-            <span>{profile.email}</span>
-            {!isPhoneEmpty(profile.phoneNumber) ? <span>Phone available</span> : null}
+        <div className="candidate-profile-hero__identity-row">
+          <div className="candidate-profile-hero__copy">
+            <h1>{fullName || "Your profile"}</h1>
+            <p>{professionalSubtitle}</p>
           </div>
-          <div className="candidate-profile-hero__actions">
-            <button
-              className="button button--ghost candidate-profile-hero__action"
-              onClick={onOpenAbout}
-              type="button"
-            >
-              Edit profile
-            </button>
-            <button
-              className="button button--ghost candidate-profile-hero__action"
-              onClick={onOpenCareer}
-              type="button"
-            >
-              View experience
-            </button>
-          </div>
+          <button
+            className="button button--ghost candidate-profile-hero__action"
+            onClick={onOpenAbout}
+            type="button"
+          >
+            Edit profile
+          </button>
         </div>
       </div>
-      <div className="candidate-profile-hero__summary" aria-label="Profile summary">
-        <p>{aboutPreview}</p>
-        <div className="candidate-profile-hero__completion">
-          <span>{completion.percentage}% complete</span>
-          <span>{completion.missing.length} details to add</span>
-        </div>
+    </section>
+  );
+}
+
+function CandidateProfileCompletionPrompt({ profile }: { profile: CandidateProfileState }): JSX.Element {
+  const completion = calculateCompletion(profile);
+  const missingDetailLabel = completion.missing.length === 1 ? "detail" : "details";
+
+  return (
+    <section className="candidate-profile-completion-prompt surface-card" aria-label="Profile completion">
+      <div>
+        <p className="section-kicker">Profile guidance</p>
+        <h2>Complete your profile</h2>
+        <p>
+          Add a short professional summary and key details so recruiters can understand your fit faster.
+        </p>
+      </div>
+      <div className="candidate-profile-completion-prompt__meta">
+        <strong>{completion.percentage}%</strong>
+        <span>{completion.missing.length} {missingDetailLabel} missing</span>
         <div
           aria-hidden="true"
           className="candidate-profile-completion__bar"
@@ -733,39 +1271,6 @@ function CandidateProfileHeader({
         />
       </div>
     </section>
-  );
-}
-
-function CandidateProfileCompletionCard({ profile }: { profile: CandidateProfileState }): JSX.Element {
-  const completion = calculateCompletion(profile);
-
-  return (
-    <aside className="candidate-profile-rail candidate-profile-rail--compact" aria-label="Profile completion">
-      <section className="candidate-profile-completion surface-card">
-        <p className="section-kicker">Profile strength</p>
-        <div className="candidate-profile-completion__score">{completion.percentage}%</div>
-        <p>Complete your profile so recruiters get the full picture.</p>
-        <div
-          aria-hidden="true"
-          className="candidate-profile-completion__bar"
-          style={{ ["--profile-completion" as string]: `${completion.percentage}%` }}
-        />
-        <div className="candidate-profile-completion__missing">
-          <span>{completion.missing.length} details missing</span>
-          {completion.missing.slice(0, 6).map((item) => (
-            <a href={`#${item.target}`} key={item.id}>
-              {item.label}
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="candidate-profile-quick surface-card">
-        <p className="section-kicker">Last updated</p>
-        <strong>{formatUpdatedAt(profile.updatedAt)}</strong>
-        <p>Keep this updated so your applications are easier to review.</p>
-      </section>
-    </aside>
   );
 }
 
@@ -1001,50 +1506,80 @@ function NationalitySelect({
 function MoneyInput({
   amountError,
   currencyError,
+  helper,
   label,
   onChange,
+  suffixLabel = "per month",
+  tone = "default",
   value
 }: {
   amountError?: string;
   currencyError?: string;
+  helper?: string;
   label: string;
   onChange: (value: CandidateMoneyValue) => void;
+  suffixLabel?: string;
+  tone?: "default" | "emphasis";
   value: CandidateMoneyValue;
 }): JSX.Element {
+  const currencyControlRef = useRef<HTMLDivElement | null>(null);
   const [currencyQuery, setCurrencyQuery] = useState("");
+  const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const currencies = useMemo(() => searchCurrencies(currencyQuery, 8), [currencyQuery]);
+  const selectedCurrencyCode = value.currencyCode || "ZAR";
+  const hasError = Boolean(amountError || currencyError);
 
   return (
-    <div className="candidate-profile-money">
-      <span className="auth-field__label">{label}</span>
-      <div className="candidate-profile-money__row">
-        <div className="candidate-profile-money__currency">
+    <div className={`candidate-profile-money candidate-profile-money--${tone}`}>
+      <div className="candidate-profile-money__heading">
+        <span className="auth-field__label">{label}</span>
+        {helper ? <span className="candidate-profile-money__helper">{helper}</span> : null}
+      </div>
+      <div className="candidate-profile-money__control" data-error={hasError || undefined}>
+        <div
+          className="candidate-profile-money__currency"
+          onBlur={(event) => {
+            if (!currencyControlRef.current?.contains(event.relatedTarget)) {
+              setIsCurrencyOpen(false);
+              setCurrencyQuery("");
+            }
+          }}
+          ref={currencyControlRef}
+        >
+          <span className="candidate-profile-money__currency-code">{selectedCurrencyCode}</span>
           <input
             aria-label={`${label} currency`}
-            className="auth-field__input"
-            onChange={(event) => setCurrencyQuery(event.target.value.toUpperCase())}
-            placeholder={value.currencyCode || "ZAR"}
+            className="candidate-profile-money__currency-search"
+            onChange={(event) => {
+              setCurrencyQuery(event.target.value.toUpperCase());
+              setIsCurrencyOpen(true);
+            }}
+            onFocus={() => setIsCurrencyOpen(true)}
+            placeholder="Change"
             value={currencyQuery}
           />
-          <div className="candidate-profile-search-picker__results">
-            {currencies.map((currency) => (
-              <button
-                key={currency.code}
-                onClick={() => {
-                  onChange({ ...value, currencyCode: currency.code });
-                  setCurrencyQuery("");
-                }}
-                type="button"
-              >
-                {currency.code}
-              </button>
-            ))}
-          </div>
-          <span>{value.currencyCode || "ZAR"}</span>
+          {isCurrencyOpen ? (
+            <div className="candidate-profile-money__currency-results">
+              {currencies.map((currency) => (
+                <button
+                  key={currency.code}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onChange({ ...value, currencyCode: currency.code });
+                    setCurrencyQuery("");
+                    setIsCurrencyOpen(false);
+                  }}
+                  type="button"
+                >
+                  {currency.code}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         <input
           aria-label={`${label} amount`}
-          className={["auth-field__input", amountError ? "auth-field__input--error" : ""]
+          className={["candidate-profile-money__amount", amountError ? "auth-field__input--error" : ""]
             .filter(Boolean)
             .join(" ")}
           inputMode="decimal"
@@ -1052,6 +1587,7 @@ function MoneyInput({
           placeholder="75,000"
           value={value.amount}
         />
+        {suffixLabel ? <span className="candidate-profile-money__suffix">{suffixLabel}</span> : null}
       </div>
       {amountError || currencyError ? (
         <span className="auth-field__error">{amountError ?? currencyError}</span>
@@ -1095,6 +1631,10 @@ function EmptyState({ children }: { children: ReactNode }): JSX.Element {
   return <p className="candidate-profile-empty">{children}</p>;
 }
 
+function ProfileDialogPortal({ children }: { children: ReactNode }): JSX.Element {
+  return createPortal(children, document.body);
+}
+
 function ProfileFilesSection({
   onChange,
   profile,
@@ -1105,10 +1645,17 @@ function ProfileFilesSection({
   session: CandidateSession;
 }): JSX.Element {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [category, setCategory] = useState<CandidateFileCategory>("Other");
   const [previewFile, setPreviewFile] = useState<{ file: CandidateProfileFile; objectUrl: string } | null>(null);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const deleteTitleId = useId();
+  const deleteDescriptionId = useId();
+  const deleteFile = deleteFileId
+    ? profile.files.find((candidateFile) => candidateFile.id === deleteFileId) ?? null
+    : null;
 
   useEffect(() => {
     return () => {
@@ -1117,6 +1664,31 @@ function ProfileFilesSection({
       }
     };
   }, [previewFile]);
+
+  useEffect(() => {
+    if (!deleteFileId && !previewFile) {
+      return;
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (previewFile?.objectUrl) {
+        URL.revokeObjectURL(previewFile.objectUrl);
+        setPreviewFile(null);
+      }
+
+      setDeleteFileId(null);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [deleteFileId, previewFile]);
 
   const openPreview = async (file: CandidateProfileFile): Promise<void> => {
     let asset: File | null = null;
@@ -1166,10 +1738,53 @@ function ProfileFilesSection({
       return;
     }
 
-    const record = buildProfileUploadFile(file, category);
+    const record = buildProfileUploadFile(file, "Other");
     await savePrototypeProfileAsset(session.email, record.id, file);
     onChange([record, ...profile.files]);
     setError(null);
+  };
+
+  const startRename = (file: CandidateProfileFile): void => {
+    setRenamingFileId(file.id);
+    setRenameValue(file.fileName.slice(0, PROFILE_FILE_NAME_MAX_LENGTH));
+    setRenameError(null);
+  };
+
+  const cancelRename = (): void => {
+    setRenamingFileId(null);
+    setRenameValue("");
+    setRenameError(null);
+  };
+
+  const saveRename = (): void => {
+    if (!renamingFileId) {
+      return;
+    }
+
+    const nextFileName = renameValue.trim().replace(/\s+/g, " ");
+
+    if (!nextFileName) {
+      setRenameError("Add a file name.");
+      return;
+    }
+
+    if (nextFileName.length > PROFILE_FILE_NAME_MAX_LENGTH) {
+      setRenameError(`File names can be up to ${PROFILE_FILE_NAME_MAX_LENGTH} characters.`);
+      return;
+    }
+
+    onChange(
+      profile.files.map((file) =>
+        file.id === renamingFileId
+          ? {
+              ...file,
+              fileName: nextFileName,
+              fileExtension: getFileExtensionFromName(nextFileName, file.fileExtension)
+            }
+          : file
+      )
+    );
+    cancelRename();
   };
 
   const confirmedDelete = async (): Promise<void> => {
@@ -1187,436 +1802,246 @@ function ProfileFilesSection({
   };
 
   return (
-    <div className="candidate-profile-files">
-      <div className="candidate-profile-file-upload">
-        <SelectField
-          label="File type"
-          onChange={(value) => setCategory(value as CandidateFileCategory)}
-          value={category}
-        >
-          {FILE_CATEGORY_OPTIONS.map((fileCategory) => (
-            <option key={fileCategory} value={fileCategory}>
-              {fileCategory}
-            </option>
-          ))}
-        </SelectField>
-        <input
-          accept={PROFILE_FILE_ACCEPT}
-          className="sr-only"
-          onChange={(event) => {
-            void handleUpload(event);
-          }}
-          ref={fileInputRef}
-          type="file"
-        />
-        <button
-          className="button button--job-primary"
-          onClick={() => fileInputRef.current?.click()}
-          type="button"
-        >
-          <Upload aria-hidden="true" />
-          Upload file
-        </button>
+    <section
+      aria-labelledby="profile-section-files"
+      className="candidate-profile-section surface-card"
+      id="files"
+    >
+      <header className="candidate-profile-section__header">
+        <div>
+          <h2 id="profile-section-files">Files</h2>
+          <p>Manage your files and keep your resume up to date.</p>
+        </div>
+        <div className="candidate-profile-section__actions">
+          <input
+            accept={PROFILE_FILE_ACCEPT}
+            className="sr-only"
+            onChange={(event) => {
+              void handleUpload(event);
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+          <button
+            className="button button--job-primary candidate-profile-files__upload-button"
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+          >
+            <Upload aria-hidden="true" />
+            Upload file
+          </button>
+        </div>
+      </header>
+      <div className="candidate-profile-files">
+        {error ? <p className="auth-field__error">{error}</p> : null}
+        <div className="candidate-profile-file-list">
+          {profile.files.length ? (
+            profile.files.map((file) => {
+              const isRenaming = renamingFileId === file.id;
+
+              return (
+                <article className="candidate-profile-file" key={file.id}>
+                  <span className="candidate-profile-file__icon">
+                    <FileText aria-hidden="true" />
+                    <span>{file.fileExtension}</span>
+                  </span>
+                  <div className="candidate-profile-file__details">
+                    {isRenaming ? (
+                      <label className="candidate-profile-file__rename">
+                        <span className="sr-only">Rename {file.fileName}</span>
+                        <input
+                          aria-describedby={renameError ? `rename-error-${file.id}` : undefined}
+                          aria-invalid={Boolean(renameError)}
+                          autoFocus
+                          maxLength={PROFILE_FILE_NAME_MAX_LENGTH}
+                          onChange={(event) => {
+                            setRenameValue(event.target.value);
+                            setRenameError(null);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              saveRename();
+                            }
+
+                            if (event.key === "Escape") {
+                              cancelRename();
+                            }
+                          }}
+                          value={renameValue}
+                        />
+                        <span className="candidate-profile-file__rename-count">
+                          {renameValue.length}/{PROFILE_FILE_NAME_MAX_LENGTH}
+                        </span>
+                        {renameError ? (
+                          <span className="auth-field__error" id={`rename-error-${file.id}`}>
+                            {renameError}
+                          </span>
+                        ) : null}
+                      </label>
+                    ) : (
+                      <>
+                        <strong className="candidate-profile-file__name" title={file.fileName}>
+                          {file.fileName}
+                        </strong>
+                        <span className="candidate-profile-file__meta">
+                          {file.fileExtension} · {formatFileSize(file.fileSize)} · Uploaded{" "}
+                          {formatFileUploadedDate(file.uploadedAt)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="candidate-profile-file__actions">
+                    {isRenaming ? (
+                      <>
+                        <button
+                          aria-label={`Save new name for ${file.fileName}`}
+                          onClick={saveRename}
+                          type="button"
+                        >
+                          <Check aria-hidden="true" />
+                        </button>
+                        <button
+                          aria-label={`Cancel renaming ${file.fileName}`}
+                          onClick={cancelRename}
+                          type="button"
+                        >
+                          <X aria-hidden="true" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          aria-label={`Preview ${file.fileName}`}
+                          className="candidate-profile-file__preview-action"
+                          onClick={() => {
+                            void openPreview(file);
+                          }}
+                          type="button"
+                        >
+                          <Eye aria-hidden="true" />
+                          Preview
+                        </button>
+                        <button
+                          aria-label={`Rename ${file.fileName}`}
+                          onClick={() => startRename(file)}
+                          type="button"
+                        >
+                          <Edit3 aria-hidden="true" />
+                        </button>
+                        <button
+                          aria-label={`Download ${file.fileName}`}
+                          onClick={() => {
+                            void downloadFile(file);
+                          }}
+                          type="button"
+                        >
+                          <Download aria-hidden="true" />
+                        </button>
+                        <button
+                          aria-label={`Delete ${file.fileName}`}
+                          className="candidate-profile-file__delete-action"
+                          onClick={() => setDeleteFileId(file.id)}
+                          type="button"
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <EmptyState>Upload your resume or supporting files so recruiters can review them when needed.</EmptyState>
+          )}
+        </div>
       </div>
-      {error ? <p className="auth-field__error">{error}</p> : null}
-      <div className="candidate-profile-file-list">
-        {profile.files.length ? (
-          profile.files.map((file) => (
-            <article className="candidate-profile-file" key={file.id}>
-              <span className="candidate-profile-file__icon">
-                <FileText aria-hidden="true" />
-              </span>
-              <div>
-                <strong>{file.fileName}</strong>
-                <span>
-                  {file.category} · {formatFileSize(file.fileSize)} · {file.fileExtension}
-                </span>
-              </div>
-              <div className="candidate-profile-file__actions">
-                <button
-                  aria-label={`Preview ${file.fileName}`}
-                  onClick={() => {
-                    void openPreview(file);
-                  }}
-                  type="button"
-                >
-                  <Eye aria-hidden="true" />
-                </button>
-                <button
-                  aria-label={`Download ${file.fileName}`}
-                  onClick={() => {
-                    void downloadFile(file);
-                  }}
-                  type="button"
-                >
-                  <Download aria-hidden="true" />
-                </button>
-                <button
-                  aria-label={`Delete ${file.fileName}`}
-                  onClick={() => setDeleteFileId(file.id)}
-                  type="button"
-                >
+      {deleteFile ? (
+        <ProfileDialogPortal>
+          <div
+            aria-describedby={deleteDescriptionId}
+            aria-labelledby={deleteTitleId}
+            className="candidate-profile-dialog"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="candidate-profile-dialog__panel candidate-profile-dialog__panel--danger">
+              <div className="candidate-profile-dialog__danger-header">
+                <span className="candidate-profile-dialog__danger-mark">
                   <Trash2 aria-hidden="true" />
+                </span>
+                <div>
+                  <h3 id={deleteTitleId}>Delete file?</h3>
+                  <p id={deleteDescriptionId}>
+                    This will remove the file from your profile. You can upload it again later if needed.
+                  </p>
+                </div>
+              </div>
+              <div className="candidate-profile-dialog__file-summary">
+                <FileText aria-hidden="true" />
+                <div>
+                  <strong>{deleteFile.fileName}</strong>
+                  <span>
+                    {formatFileSize(deleteFile.fileSize)} · {deleteFile.fileExtension}
+                  </span>
+                </div>
+              </div>
+              <div className="candidate-profile-dialog__actions">
+                <button
+                  autoFocus
+                  className="button button--ghost"
+                  onClick={() => setDeleteFileId(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button candidate-profile-dialog__danger-button"
+                  onClick={() => {
+                    void confirmedDelete();
+                  }}
+                  type="button"
+                >
+                  Delete file
                 </button>
               </div>
-            </article>
-          ))
-        ) : (
-          <EmptyState>Upload your CV, certificates, or supporting documents.</EmptyState>
-        )}
-      </div>
-      {deleteFileId ? (
-        <div className="candidate-profile-dialog" role="dialog" aria-modal="true">
-          <div className="candidate-profile-dialog__panel">
-            <h3>Delete this file?</h3>
-            <p>This removes it from your prototype profile.</p>
-            <div>
-              <button className="button button--ghost" onClick={() => setDeleteFileId(null)} type="button">
-                Cancel
-              </button>
-              <button
-                className="button button--job-primary"
-                onClick={() => {
-                  void confirmedDelete();
-                }}
-                type="button"
-              >
-                Delete
-              </button>
             </div>
           </div>
-        </div>
+        </ProfileDialogPortal>
       ) : null}
       {previewFile ? (
-        <div className="candidate-profile-dialog" role="dialog" aria-modal="true">
-          <div className="candidate-profile-dialog__panel candidate-profile-dialog__panel--preview">
-            <header>
-              <h3>{previewFile.file.fileName}</h3>
-              <button
-                aria-label="Close preview"
-                onClick={() => {
-                  URL.revokeObjectURL(previewFile.objectUrl);
-                  setPreviewFile(null);
-                }}
-                type="button"
-              >
-                <X aria-hidden="true" />
-              </button>
-            </header>
-            {previewFile.file.mimeType?.startsWith("image/") ? (
-              <img alt="" src={previewFile.objectUrl} />
-            ) : previewFile.file.mimeType === "application/pdf" ? (
-              <iframe src={previewFile.objectUrl} title={previewFile.file.fileName} />
-            ) : (
-              <p>Preview is not available for this file type.</p>
-            )}
+        <ProfileDialogPortal>
+          <div className="candidate-profile-dialog candidate-profile-dialog--preview" role="dialog" aria-modal="true">
+            <div className="candidate-profile-dialog__panel candidate-profile-dialog__panel--preview">
+              <header>
+                <h3>{previewFile.file.fileName}</h3>
+                <button
+                  aria-label="Close preview"
+                  onClick={() => {
+                    URL.revokeObjectURL(previewFile.objectUrl);
+                    setPreviewFile(null);
+                  }}
+                  type="button"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </header>
+              {previewFile.file.mimeType?.startsWith("image/") ? (
+                <img alt="" src={previewFile.objectUrl} />
+              ) : previewFile.file.mimeType === "application/pdf" ? (
+                <iframe src={buildPdfPreviewUrl(previewFile.objectUrl)} title={previewFile.file.fileName} />
+              ) : (
+                <p className="candidate-profile-dialog__preview-empty">
+                  Preview is not available for this file.
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        </ProfileDialogPortal>
       ) : null}
-    </div>
+    </section>
   );
-}
-
-function CareerEditor({
-  errors,
-  onChange,
-  value
-}: {
-  errors: ValidationErrors;
-  onChange: (entries: PrototypeCareerEntry[]) => void;
-  value: PrototypeCareerEntry[];
-}): JSX.Element {
-  const updateEntry = (
-    entryId: string,
-    updater: (entry: PrototypeCareerEntry) => PrototypeCareerEntry
-  ): void => {
-    onChange(value.map((entry) => (entry.id === entryId ? updater(entry) : entry)));
-  };
-
-  return (
-    <div className="candidate-profile-entry-list">
-      {value.map((entry) => (
-        <article className="candidate-profile-entry-editor" key={entry.id}>
-          <div className="candidate-profile-entry-editor__header">
-            <strong>{entry.jobTitle || "New role"}</strong>
-            <button
-              aria-label="Remove role"
-              className="candidate-profile-icon-button"
-              onClick={() => onChange(value.filter((candidateEntry) => candidateEntry.id !== entry.id))}
-              type="button"
-            >
-              <Trash2 aria-hidden="true" />
-            </button>
-          </div>
-          <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-            <TextField
-              error={errors[`career-${entry.id}-jobTitle`]}
-              label="Job title"
-              onChange={(jobTitle) => updateEntry(entry.id, (current) => ({ ...current, jobTitle }))}
-              value={entry.jobTitle}
-            />
-            <TextField
-              error={errors[`career-${entry.id}-company`]}
-              label="Company"
-              onChange={(company) => updateEntry(entry.id, (current) => ({ ...current, company }))}
-              value={entry.company}
-            />
-          </div>
-          <ApplicationLocationField
-            label="Location (Optional)"
-            onChange={(location) => updateEntry(entry.id, (current) => ({ ...current, location }))}
-            value={entry.location}
-          />
-          <div className="candidate-profile-form-grid candidate-profile-form-grid--four">
-            <SelectField
-              error={errors[`career-${entry.id}-start`]}
-              label="From month"
-              onChange={(startMonth) => updateEntry(entry.id, (current) => ({ ...current, startMonth }))}
-              value={entry.startMonth}
-            >
-              <option value="">Month</option>
-              {MONTH_OPTIONS.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              error={errors[`career-${entry.id}-start`]}
-              label="From year"
-              onChange={(startYear) => updateEntry(entry.id, (current) => ({ ...current, startYear }))}
-              value={entry.startYear}
-            >
-              <option value="">Year</option>
-              {YEAR_OPTIONS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              disabled={entry.isCurrent}
-              error={errors[`career-${entry.id}-end`]}
-              label="To month"
-              onChange={(endMonth) => updateEntry(entry.id, (current) => ({ ...current, endMonth }))}
-              value={entry.endMonth}
-            >
-              <option value="">Month</option>
-              {MONTH_OPTIONS.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              disabled={entry.isCurrent}
-              error={errors[`career-${entry.id}-end`]}
-              label="To year"
-              onChange={(endYear) => updateEntry(entry.id, (current) => ({ ...current, endYear }))}
-              value={entry.endYear}
-            >
-              <option value="">Year</option>
-              {YEAR_OPTIONS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <label className="candidate-profile-inline-check">
-            <input
-              checked={entry.isCurrent}
-              onChange={(event) =>
-                updateEntry(entry.id, (current) => ({
-                  ...current,
-                  isCurrent: event.target.checked,
-                  endMonth: event.target.checked ? "" : current.endMonth,
-                  endYear: event.target.checked ? "" : current.endYear
-                }))
-              }
-              type="checkbox"
-            />
-            Current position
-          </label>
-          <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-            <TextField
-              label="Industry"
-              onChange={(industry) => updateEntry(entry.id, (current) => ({ ...current, industry }))}
-              value={entry.industry}
-            />
-            <SelectField
-              label="Career level"
-              onChange={(careerLevel) =>
-                updateEntry(entry.id, (current) => ({
-                  ...current,
-                  careerLevel: careerLevel as PrototypeCareerLevel
-                }))
-              }
-              value={entry.careerLevel}
-            >
-              <option value="">Select level</option>
-              {CAREER_LEVEL_OPTIONS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <AuthRichTextField
-            label="Description"
-            name={`profile-career-${entry.id}`}
-            onChange={(description) =>
-              updateEntry(entry.id, (current) => ({ ...current, description }))
-            }
-            value={entry.description}
-          />
-          <TextField
-            label="Reason for leaving"
-            onChange={(reasonForLeaving) =>
-              updateEntry(entry.id, (current) => ({ ...current, reasonForLeaving }))
-            }
-            value={entry.reasonForLeaving}
-          />
-        </article>
-      ))}
-      <button
-        className="button button--ghost"
-        onClick={() => onChange([...value, makeEmptyCareerEntry()])}
-        type="button"
-      >
-        <Plus aria-hidden="true" />
-        Add role
-      </button>
-    </div>
-  );
-}
-
-function EducationEditor({
-  errors,
-  onChange,
-  value
-}: {
-  errors: ValidationErrors;
-  onChange: (entries: PrototypeEducationEntry[]) => void;
-  value: PrototypeEducationEntry[];
-}): JSX.Element {
-  const updateEntry = (
-    entryId: string,
-    updater: (entry: PrototypeEducationEntry) => PrototypeEducationEntry
-  ): void => {
-    onChange(value.map((entry) => (entry.id === entryId ? updater(entry) : entry)));
-  };
-
-  return (
-    <div className="candidate-profile-entry-list">
-      {value.map((entry) => (
-        <article className="candidate-profile-entry-editor" key={entry.id}>
-          <div className="candidate-profile-entry-editor__header">
-            <strong>{entry.qualification || "New education item"}</strong>
-            <button
-              aria-label="Remove education item"
-              className="candidate-profile-icon-button"
-              onClick={() => onChange(value.filter((candidateEntry) => candidateEntry.id !== entry.id))}
-              type="button"
-            >
-              <Trash2 aria-hidden="true" />
-            </button>
-          </div>
-          <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-            <TextField
-              error={errors[`education-${entry.id}-institution`]}
-              label="Institution"
-              onChange={(institution) =>
-                updateEntry(entry.id, (current) => ({ ...current, institution }))
-              }
-              value={entry.institution}
-            />
-            <SelectField
-              error={errors[`education-${entry.id}-qualification`]}
-              label="Qualification"
-              onChange={(qualification) =>
-                updateEntry(entry.id, (current) => ({
-                  ...current,
-                  qualification: qualification as PrototypeEducationQualification
-                }))
-              }
-              value={entry.qualification}
-            >
-              <option value="">Select qualification</option>
-              {EDUCATION_QUALIFICATION_OPTIONS.map((qualification) => (
-                <option key={qualification} value={qualification}>
-                  {qualification}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <div className="candidate-profile-form-grid candidate-profile-form-grid--three">
-            <TextField
-              label="Field of study"
-              onChange={(fieldOfStudy) =>
-                updateEntry(entry.id, (current) => ({ ...current, fieldOfStudy }))
-              }
-              value={entry.fieldOfStudy}
-            />
-            <SelectField
-              error={errors[`education-${entry.id}-years`]}
-              label="From"
-              onChange={(startYear) =>
-                updateEntry(entry.id, (current) => ({ ...current, startYear }))
-              }
-              value={entry.startYear}
-            >
-              <option value="">Year</option>
-              {YEAR_OPTIONS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              error={errors[`education-${entry.id}-years`]}
-              label="To"
-              onChange={(endYear) => updateEntry(entry.id, (current) => ({ ...current, endYear }))}
-              value={entry.endYear}
-            >
-              <option value="">Year</option>
-              {YEAR_OPTIONS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <AuthRichTextField
-            label="Description"
-            name={`profile-education-${entry.id}`}
-            onChange={(description) =>
-              updateEntry(entry.id, (current) => ({ ...current, description }))
-            }
-            value={entry.description}
-          />
-        </article>
-      ))}
-      <button
-        className="button button--ghost"
-        onClick={() => onChange([...value, makeEmptyEducationEntry()])}
-        type="button"
-      >
-        <Plus aria-hidden="true" />
-        Add education
-      </button>
-    </div>
-  );
-}
-
-function ReadList({
-  empty,
-  items
-}: {
-  empty: string;
-  items: ReactNode[];
-}): JSX.Element {
-  return items.length ? <div className="candidate-profile-read-list">{items}</div> : <EmptyState>{empty}</EmptyState>;
 }
 
 function ProfileGuard(): JSX.Element {
@@ -1625,7 +2050,7 @@ function ProfileGuard(): JSX.Element {
       <section className="candidate-profile-guard surface-card">
         <p className="section-kicker">Candidate profile</p>
         <h1>Sign in to view your profile</h1>
-        <p>Manage your details, documents, preferences, and career history from one place.</p>
+        <p>Manage your details, files, and career history from one place.</p>
         <TransitionLink
           className="button button--job-primary"
           href={buildApplicationAuthPath(REFERENCE_JOB_ID, "signin")}
@@ -1645,7 +2070,7 @@ export function CandidateProfilePage(): JSX.Element {
   );
   const [draftProfile, setDraftProfile] = useState<CandidateProfileState | null>(profile);
   const [editingSection, setEditingSection] = useState<ProfileSectionId | null>(null);
-  const [activeTab, setActiveTab] = useState<ProfileTabId>("career-education");
+  const [activeTab, setActiveTab] = useState<ProfileTabId>("about");
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [savedSection, setSavedSection] = useState<ProfileSectionId | null>(null);
   const savedTimeoutRef = useRef<number | null>(null);
@@ -1679,7 +2104,14 @@ export function CandidateProfilePage(): JSX.Element {
   };
 
   const saveSection = (sectionId: ProfileSectionId): void => {
-    const nextErrors = validateProfileSection(sectionId, draftProfile);
+    const profileToSave =
+      sectionId === "contact"
+        ? {
+            ...draftProfile,
+            email: profile.email
+          }
+        : draftProfile;
+    const nextErrors = validateProfileSection(sectionId, profileToSave);
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
@@ -1687,7 +2119,7 @@ export function CandidateProfilePage(): JSX.Element {
     }
 
     const nextProfile = {
-      ...draftProfile,
+      ...profileToSave,
       updatedAt: new Date().toISOString()
     };
     savePrototypeCandidateProfile(session, nextProfile);
@@ -1725,14 +2157,16 @@ export function CandidateProfilePage(): JSX.Element {
               updatedAt: new Date().toISOString()
             }))
           }
+          onCoverChange={(coverImage) =>
+            updateImmediate((current) => ({
+              ...current,
+              coverImage,
+              updatedAt: new Date().toISOString()
+            }))
+          }
           onOpenAbout={() => {
             setActiveTab("about");
-            beginEdit("identity");
-          }}
-          onOpenCareer={() => {
-            setActiveTab("career-education");
-            setEditingSection(null);
-            setErrors({});
+            beginEdit("about");
           }}
           profile={profile}
         />
@@ -1761,11 +2195,6 @@ export function CandidateProfilePage(): JSX.Element {
           ))}
         </nav>
 
-        <div className="candidate-profile-tab-intro">
-          <span>{activeTabMeta.label}</span>
-          <p>{activeTabMeta.description}</p>
-        </div>
-
         <div className="candidate-profile-layout candidate-profile-layout--tabbed">
           <main
             className="candidate-profile-main candidate-profile-tab-panel"
@@ -1774,201 +2203,350 @@ export function CandidateProfilePage(): JSX.Element {
           >
             {activeTab === "about" ? (
               <>
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="identity"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Keep your core details easy for recruiters to understand."
-              title="Profile"
-            >
-              {editingSection === "identity" ? (
-                <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-                  <TextField
-                    error={errors.firstName}
-                    label="First name"
-                    onChange={(firstName) => updateDraft((current) => ({ ...current, firstName }))}
-                    value={draftProfile.firstName}
-                  />
-                  <TextField
-                    error={errors.lastName}
-                    label="Last name"
-                    onChange={(lastName) => updateDraft((current) => ({ ...current, lastName }))}
-                    value={draftProfile.lastName}
-                  />
-                  <TextField
-                    label="Current or most recent job title"
-                    onChange={(currentJobTitle) =>
-                      updateDraft((current) => ({ ...current, currentJobTitle }))
-                    }
-                    value={draftProfile.currentJobTitle}
-                  />
-                  <ApplicationLocationField
-                    error={errors.location}
-                    label="Location"
-                    onChange={(location) => updateDraft((current) => ({ ...current, location }))}
-                    required
-                    value={draftProfile.location}
-                  />
-                </div>
-              ) : (
-                <ReadList
-                  empty="Add your name, current role, and location."
-                  items={[
-                    <span key="name">{displayProfile.firstName} {displayProfile.lastName}</span>,
-                    <span key="title">{displayProfile.currentJobTitle || "Current title not added"}</span>,
-                    <span key="location">{displayProfile.location?.label || "Location not added"}</span>
-                  ]}
-                />
-              )}
-            </EditableProfileSection>
+                <CandidateProfileCompletionPrompt profile={profile} />
 
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="about"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Tell recruiters what kind of work you do best."
-              title="About"
-            >
-              {editingSection === "about" ? (
-                <AuthRichTextField
-                  label="About Me"
-                  name="candidate-profile-about"
-                  onChange={(aboutMe) => updateDraft((current) => ({ ...current, aboutMe }))}
-                  placeholder="Share a short intro about your background and strengths."
-                  value={draftProfile.aboutMe}
-                />
-              ) : stripHtml(displayProfile.aboutMe) ? (
-                <div
-                  className="candidate-profile-rich-preview"
-                  dangerouslySetInnerHTML={{ __html: displayProfile.aboutMe }}
-                />
-              ) : (
-                <EmptyState>Tell recruiters what kind of work you do best.</EmptyState>
-              )}
-            </EditableProfileSection>
+                <div className="candidate-profile-about-grid">
+                  <div className="candidate-profile-about-grid__story">
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="about"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="About Me"
+                      variant="story"
+                    >
+                      {editingSection === "about" ? (
+                        <AuthRichTextField
+                          label="About Me"
+                          name="candidate-profile-about"
+                          onChange={(aboutMe) => updateDraft((current) => ({ ...current, aboutMe }))}
+                          placeholder="Share a short intro about your background and strengths."
+                          value={draftProfile.aboutMe}
+                        />
+                      ) : (
+                        <div className="candidate-profile-story">
+                          {stripHtml(displayProfile.aboutMe) ? (
+                            <ProfileAboutMePreview value={displayProfile.aboutMe} />
+                          ) : (
+                            <div className="candidate-profile-soft-empty">
+                              Add a professional summary to make this profile feel complete.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </EditableProfileSection>
 
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="contact"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Make it easy for recruiters to reach you when there is a match."
-              title="Contact Details"
-            >
-              {editingSection === "contact" ? (
-                <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-                  <TextField
-                    error={errors.email}
-                    label="Email"
-                    onChange={(email) => updateDraft((current) => ({ ...current, email }))}
-                    type="email"
-                    value={draftProfile.email}
-                  />
-                  <ApplicationPhoneField
-                    defaultCountryCode={draftProfile.location?.countryCode}
-                    error={errors.phoneNumber}
-                    label="Phone Number"
-                    onChange={(phoneNumber) =>
-                      updateDraft((current) => ({ ...current, phoneNumber }))
-                    }
-                    value={draftProfile.phoneNumber}
-                  />
-                  <ApplicationPhoneField
-                    defaultCountryCode={draftProfile.location?.countryCode}
-                    error={errors.alternativeNumber}
-                    label="Alternative Number (Optional)"
-                    onChange={(alternativeNumber) =>
-                      updateDraft((current) => ({ ...current, alternativeNumber }))
-                    }
-                    value={draftProfile.alternativeNumber}
-                  />
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="skills"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Skills"
+                      variant="story"
+                    >
+                      {editingSection === "skills" ? (
+                        <SkillsEditor
+                          onChange={(skills) => updateDraft((current) => ({ ...current, skills }))}
+                          value={draftProfile.skills}
+                        />
+                      ) : displayProfile.skills.length ? (
+                        <ProfileSkillOverflowList skills={displayProfile.skills} />
+                      ) : (
+                        <div className="candidate-profile-soft-empty">Add skills that describe your strongest work.</div>
+                      )}
+                    </EditableProfileSection>
+
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="languages"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Languages"
+                      variant="story"
+                    >
+                      {editingSection === "languages" ? (
+                        <LanguagesEditor
+                          errors={errors}
+                          onChange={(languages) => updateDraft((current) => ({ ...current, languages }))}
+                          value={draftProfile.languages}
+                        />
+                      ) : displayProfile.languages.length ? (
+                        <div className="candidate-profile-language-summary">
+                          {displayProfile.languages.map((language) => (
+                            <div className="candidate-profile-language-summary__row" key={language.id}>
+                              <strong>{language.languageName}</strong>
+                              <span>{language.proficiency}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="candidate-profile-soft-empty">Add languages you can work in.</div>
+                      )}
+                    </EditableProfileSection>
+                  </div>
+
+                  <aside className="candidate-profile-about-grid__details" aria-label="Hiring details">
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="contact"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Contact"
+                      variant="panel"
+                    >
+                      {editingSection === "contact" ? (
+                        <div className="candidate-profile-form-grid">
+                          <TextField
+                            disabled
+                            error={errors.email}
+                            helper="Email address cannot be edited here."
+                            label="Email"
+                            type="email"
+                            value={profile.email}
+                          />
+                          <ApplicationPhoneField
+                            defaultCountryCode={draftProfile.location?.countryCode}
+                            error={errors.phoneNumber}
+                            label="Phone Number (Optional)"
+                            onChange={(phoneNumber) =>
+                              updateDraft((current) => ({ ...current, phoneNumber }))
+                            }
+                            value={draftProfile.phoneNumber}
+                          />
+                          <ApplicationPhoneField
+                            defaultCountryCode={draftProfile.location?.countryCode}
+                            error={errors.alternativeNumber}
+                            label="Alternative Number (Optional)"
+                            onChange={(alternativeNumber) =>
+                              updateDraft((current) => ({ ...current, alternativeNumber }))
+                            }
+                            value={draftProfile.alternativeNumber}
+                          />
+                        </div>
+                      ) : (
+                        <ProfileDetailRows
+                          rows={[
+                            {
+                              label: "Email",
+                              value: (
+                                <span
+                                  className="candidate-profile-truncated-value candidate-profile-email-popover"
+                                  data-full-value={displayProfile.email}
+                                  tabIndex={0}
+                                  title={displayProfile.email}
+                                >
+                                  {displayProfile.email}
+                                </span>
+                              )
+                            },
+                            {
+                              label: "Phone",
+                              value: isPhoneEmpty(displayProfile.phoneNumber)
+                                ? <ProfileInlinePrompt>Add phone number</ProfileInlinePrompt>
+                                : formatPhoneValue(displayProfile.phoneNumber)
+                            },
+                            {
+                              label: "Alternative",
+                              value: isPhoneEmpty(displayProfile.alternativeNumber)
+                                ? null
+                                : formatPhoneValue(displayProfile.alternativeNumber)
+                            }
+                          ]}
+                        />
+                      )}
+                    </EditableProfileSection>
+
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="work"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Hiring Details"
+                      variant="panel"
+                    >
+                      {editingSection === "work" ? (
+                        <div className="candidate-profile-form-grid">
+                          <YesNoControl
+                            label="Willing to relocate"
+                            onChange={(willingToRelocate) =>
+                              updateDraft((current) => ({ ...current, willingToRelocate }))
+                            }
+                            value={draftProfile.willingToRelocate}
+                          />
+                          <SelectField
+                            label="Notice period"
+                            onChange={(noticePeriod) =>
+                              updateDraft((current) => ({
+                                ...current,
+                                noticePeriod: noticePeriod as CandidateNoticePeriod
+                              }))
+                            }
+                            value={draftProfile.noticePeriod}
+                          >
+                            {NOTICE_PERIOD_OPTIONS.map((noticePeriod) => (
+                              <option key={noticePeriod || "empty"} value={noticePeriod}>
+                                {noticePeriod || "Select notice period"}
+                              </option>
+                            ))}
+                          </SelectField>
+                          <YesNoControl
+                            label="Own transport"
+                            onChange={(ownTransport) => updateDraft((current) => ({ ...current, ownTransport }))}
+                            value={draftProfile.ownTransport}
+                          />
+                        </div>
+                      ) : (
+                        <ProfileDetailRows
+                          rows={[
+                            {
+                              label: "Willing to relocate",
+                              value:
+                                formatBooleanValue(displayProfile.willingToRelocate) ?? (
+                                  <span className="candidate-profile-muted-value">Not added</span>
+                                )
+                            },
+                            {
+                              label: "Notice period",
+                              value:
+                                displayProfile.noticePeriod || (
+                                  <span className="candidate-profile-muted-value">Not added</span>
+                                )
+                            },
+                            {
+                              label: "Own transport",
+                              value:
+                                formatBooleanValue(displayProfile.ownTransport) ?? (
+                                  <span className="candidate-profile-muted-value">Not added</span>
+                                )
+                            }
+                          ]}
+                        />
+                      )}
+                    </EditableProfileSection>
+
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="remuneration"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Compensation"
+                      variant="panel"
+                    >
+                      {editingSection === "remuneration" ? (
+                        <div className="candidate-profile-remuneration-editor">
+                          <MoneyInput
+                            amountError={errors.currentRemunerationAmount}
+                            currencyError={errors.currentRemunerationCurrency}
+                            helper="What you currently earn monthly."
+                            label="Current remuneration"
+                            onChange={(currentRemuneration) =>
+                              updateDraft((current) => ({ ...current, currentRemuneration }))
+                            }
+                            value={draftProfile.currentRemuneration}
+                          />
+                          <MoneyInput
+                            amountError={errors.desiredRemunerationAmount}
+                            currencyError={errors.desiredRemunerationCurrency}
+                            helper="What you would like to earn monthly."
+                            label="Desired remuneration"
+                            onChange={(desiredRemuneration) =>
+                              updateDraft((current) => ({ ...current, desiredRemuneration }))
+                            }
+                            tone="emphasis"
+                            value={draftProfile.desiredRemuneration}
+                          />
+                        </div>
+                      ) : (
+                        <ProfileDetailRows
+                          empty="Not shared yet"
+                          rows={[
+                            { label: "Current", value: formatMoneyValue(displayProfile.currentRemuneration) },
+                            { label: "Desired", value: formatMoneyValue(displayProfile.desiredRemuneration) }
+                          ]}
+                        />
+                      )}
+                    </EditableProfileSection>
+
+                    <EditableProfileSection
+                      editingSection={editingSection}
+                      id="personal"
+                      isDirty={isDirty}
+                      onCancel={cancelEdit}
+                      onEdit={beginEdit}
+                      onSave={saveSection}
+                      savedSection={savedSection}
+                      title="Personal Details"
+                      variant="panel"
+                    >
+                      {editingSection === "personal" ? (
+                        <div className="candidate-profile-form-grid">
+                          <TextField
+                            label="Date of Birth"
+                            onChange={(dateOfBirth) => updateDraft((current) => ({ ...current, dateOfBirth }))}
+                            type="date"
+                            value={draftProfile.dateOfBirth}
+                          />
+                          <NationalitySelect
+                            label="Nationality"
+                            onChange={(nationality) => updateDraft((current) => ({ ...current, nationality }))}
+                            value={draftProfile.nationality}
+                          />
+                          <NationalitySelect
+                            label="Citizenship"
+                            onChange={(citizenship) => updateDraft((current) => ({ ...current, citizenship }))}
+                            value={draftProfile.citizenship}
+                          />
+                        </div>
+                      ) : (
+                        <ProfileDetailRows
+                          empty="Not shared yet"
+                          rows={[
+                            {
+                              label: "Date of birth",
+                              value: formatDateValue(displayProfile.dateOfBirth) || (
+                                <span className="candidate-profile-muted-value">Not added</span>
+                              )
+                            },
+                            {
+                              label: "Nationality",
+                              value: displayProfile.nationality
+                                ? `${displayProfile.nationality.flag} ${displayProfile.nationality.nationality}`
+                                : null
+                            },
+                            {
+                              label: "Citizenship",
+                              value: displayProfile.citizenship
+                                ? `${displayProfile.citizenship.flag} ${displayProfile.citizenship.nationality}`
+                                : null
+                            }
+                          ]}
+                        />
+                      )}
+                    </EditableProfileSection>
+                  </aside>
                 </div>
-              ) : (
-                <ReadList
-                  empty="Add contact details so recruiters can reach you."
-                  items={[
-                    <span key="email">{displayProfile.email}</span>,
-                    <span key="phone">{isPhoneEmpty(displayProfile.phoneNumber) ? "Phone needed" : "Phone added"}</span>,
-                    <span key="alt">{isPhoneEmpty(displayProfile.alternativeNumber) ? "Alternative number not added" : "Alternative number added"}</span>
-                  ]}
-                />
-              )}
-            </EditableProfileSection>
               </>
             ) : null}
 
-            {activeTab === "skills-languages" ? (
-              <>
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="skills"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Add a few skills so recruiters can match you to better roles."
-              title="Skills"
-            >
-              {editingSection === "skills" ? (
-                <SkillsEditor
-                  onChange={(skills) => updateDraft((current) => ({ ...current, skills }))}
-                  value={draftProfile.skills}
-                />
-              ) : displayProfile.skills.length ? (
-                <div className="candidate-profile-chip-list">
-                  {displayProfile.skills.map((skill) => (
-                    <span className="candidate-profile-chip" key={skill}>{skill}</span>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState>Add a few skills so recruiters can match you to better roles.</EmptyState>
-              )}
-            </EditableProfileSection>
-
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="languages"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Add languages you can work in."
-              title="Languages"
-            >
-              {editingSection === "languages" ? (
-                <LanguagesEditor
-                  errors={errors}
-                  onChange={(languages) => updateDraft((current) => ({ ...current, languages }))}
-                  value={draftProfile.languages}
-                />
-              ) : displayProfile.languages.length ? (
-                <ReadList
-                  empty="Add languages you can work in."
-                  items={displayProfile.languages.map((language) => (
-                    <span key={language.id}>{language.languageName} · {language.proficiency}</span>
-                  ))}
-                />
-              ) : (
-                <EmptyState>Add languages you can work in.</EmptyState>
-              )}
-            </EditableProfileSection>
-              </>
-            ) : null}
-
-            {activeTab === "career-education" ? (
+            {activeTab === "experience" ? (
               <section className="candidate-profile-section candidate-profile-section--career-review surface-card">
                 <CareerEducationReviewList
                   careerEntries={profile.careerEntries}
@@ -1986,173 +2564,12 @@ export function CandidateProfilePage(): JSX.Element {
               </section>
             ) : null}
 
-            {activeTab === "documents" ? (
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="files"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Manage your CV, certificates, portfolio, and supporting documents."
-              title="Files"
-            >
+            {activeTab === "files" ? (
               <ProfileFilesSection
-                onChange={(files) =>
-                  editingSection === "files"
-                    ? updateDraft((current) => ({ ...current, files }))
-                    : updateImmediate((current) => ({ ...current, files }))
-                }
-                profile={editingSection === "files" ? draftProfile : profile}
+                onChange={(files) => updateImmediate((current) => ({ ...current, files }))}
+                profile={profile}
                 session={session}
               />
-            </EditableProfileSection>
-            ) : null}
-
-            {activeTab === "preferences" ? (
-              <>
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="work"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Share practical details that help recruiters understand fit."
-              title="Work Preferences"
-            >
-              {editingSection === "work" ? (
-                <div className="candidate-profile-form-grid candidate-profile-form-grid--three">
-                  <YesNoControl
-                    label="Willing to relocate"
-                    onChange={(willingToRelocate) =>
-                      updateDraft((current) => ({ ...current, willingToRelocate }))
-                    }
-                    value={draftProfile.willingToRelocate}
-                  />
-                  <SelectField
-                    label="Notice period"
-                    onChange={(noticePeriod) =>
-                      updateDraft((current) => ({
-                        ...current,
-                        noticePeriod: noticePeriod as CandidateNoticePeriod
-                      }))
-                    }
-                    value={draftProfile.noticePeriod}
-                  >
-                    {NOTICE_PERIOD_OPTIONS.map((noticePeriod) => (
-                      <option key={noticePeriod || "empty"} value={noticePeriod}>
-                        {noticePeriod || "Select notice period"}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <YesNoControl
-                    label="Own transport"
-                    onChange={(ownTransport) => updateDraft((current) => ({ ...current, ownTransport }))}
-                    value={draftProfile.ownTransport}
-                  />
-                </div>
-              ) : (
-                <ReadList
-                  empty="Add work preferences when you are ready."
-                  items={[
-                    <span key="relocate">Relocate: {displayProfile.willingToRelocate === null ? "Not added" : displayProfile.willingToRelocate ? "Yes" : "No"}</span>,
-                    <span key="notice">Notice: {displayProfile.noticePeriod || "Not added"}</span>,
-                    <span key="transport">Own transport: {displayProfile.ownTransport === null ? "Not added" : displayProfile.ownTransport ? "Yes" : "No"}</span>
-                  ]}
-                />
-              )}
-            </EditableProfileSection>
-
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="remuneration"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="Keep labels neutral. You can leave amounts blank."
-              title="Remuneration"
-            >
-              {editingSection === "remuneration" ? (
-                <div className="candidate-profile-form-grid candidate-profile-form-grid--two">
-                  <MoneyInput
-                    amountError={errors.currentRemunerationAmount}
-                    currencyError={errors.currentRemunerationCurrency}
-                    label="Current remuneration"
-                    onChange={(currentRemuneration) =>
-                      updateDraft((current) => ({ ...current, currentRemuneration }))
-                    }
-                    value={draftProfile.currentRemuneration}
-                  />
-                  <MoneyInput
-                    amountError={errors.desiredRemunerationAmount}
-                    currencyError={errors.desiredRemunerationCurrency}
-                    label="Desired remuneration"
-                    onChange={(desiredRemuneration) =>
-                      updateDraft((current) => ({ ...current, desiredRemuneration }))
-                    }
-                    value={draftProfile.desiredRemuneration}
-                  />
-                </div>
-              ) : (
-                <ReadList
-                  empty="Add remuneration details if you would like recruiters to understand expectations."
-                  items={[
-                    <span key="current">Current: {displayProfile.currentRemuneration.amount ? `${displayProfile.currentRemuneration.currencyCode} ${displayProfile.currentRemuneration.amount}` : "Not added"}</span>,
-                    <span key="desired">Desired: {displayProfile.desiredRemuneration.amount ? `${displayProfile.desiredRemuneration.currencyCode} ${displayProfile.desiredRemuneration.amount}` : "Not added"}</span>
-                  ]}
-                />
-              )}
-            </EditableProfileSection>
-              </>
-            ) : null}
-
-            {activeTab === "personal" ? (
-            <EditableProfileSection
-              editingSection={editingSection}
-              id="personal"
-              isDirty={isDirty}
-              onCancel={cancelEdit}
-              onEdit={beginEdit}
-              onSave={saveSection}
-              savedSection={savedSection}
-              support="These details help recruiters understand eligibility and role requirements."
-              title="Personal Details"
-            >
-              {editingSection === "personal" ? (
-                <div className="candidate-profile-form-grid candidate-profile-form-grid--three">
-                  <NationalitySelect
-                    label="Nationality"
-                    onChange={(nationality) => updateDraft((current) => ({ ...current, nationality }))}
-                    value={draftProfile.nationality}
-                  />
-                  <NationalitySelect
-                    label="Citizenship"
-                    onChange={(citizenship) => updateDraft((current) => ({ ...current, citizenship }))}
-                    value={draftProfile.citizenship}
-                  />
-                  <TextField
-                    label="Date of Birth (Optional)"
-                    onChange={(dateOfBirth) => updateDraft((current) => ({ ...current, dateOfBirth }))}
-                    type="date"
-                    value={draftProfile.dateOfBirth}
-                  />
-                </div>
-              ) : (
-                <ReadList
-                  empty="Add private details only if they are useful for eligibility."
-                  items={[
-                    <span key="nationality">Nationality: {displayProfile.nationality ? `${displayProfile.nationality.flag} ${displayProfile.nationality.nationality}` : "Not added"}</span>,
-                    <span key="citizenship">Citizenship: {displayProfile.citizenship ? `${displayProfile.citizenship.flag} ${displayProfile.citizenship.nationality}` : "Not added"}</span>,
-                    <span key="dob">Date of birth: {displayProfile.dateOfBirth || "Not added"}</span>
-                  ]}
-                />
-              )}
-            </EditableProfileSection>
             ) : null}
           </main>
         </div>

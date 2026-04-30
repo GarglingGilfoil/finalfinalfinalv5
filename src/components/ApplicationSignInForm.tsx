@@ -145,23 +145,24 @@ export function ApplicationSignInForm({
           </button>
         </div>
 
-        <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Signing in…" : "Sign in"}
-        </button>
+        <div className="auth-form__actions auth-form__actions--split auth-form__actions--signin">
+          <p className="auth-card__footer auth-card__footer--inline">
+            Don’t have an account?{" "}
+            <button
+              className="auth-mode-link"
+              onClick={() => {
+                onModeChange("signup");
+              }}
+              type="button"
+            >
+              Sign up
+            </button>
+          </p>
+          <button className="button button--job-primary auth-form__submit" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Signing in…" : "Sign in"}
+          </button>
+        </div>
       </form>
-
-      <p className="auth-card__footer">
-        Don’t have an account?{" "}
-        <button
-          className="auth-mode-link"
-          onClick={() => {
-            onModeChange("signup");
-          }}
-          type="button"
-        >
-          Sign up
-        </button>
-      </p>
     </div>
   );
 }

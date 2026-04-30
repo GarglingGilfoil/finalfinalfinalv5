@@ -501,9 +501,7 @@ function ProfileCompletionCard({
         <p className="section-kicker">Recommended next step</p>
         <h2 id="application-success-profile-title">Give recruiters the full picture</h2>
         <p>
-          Your CV helped you apply. A fuller profile helps recruiters understand you faster.
-        </p>
-        <p>
+          Your CV helped you apply. A fuller profile helps recruiters understand you faster.{" "}
           Add details like availability, work preferences, and contact information when you’re ready.
         </p>
         <div className="application-success__profile-actions">
