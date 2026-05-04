@@ -28,12 +28,21 @@ const FILE_ACCEPT =
   ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 interface ResumeUploadSectionProps {
-  backHref: string;
+  backHref?: string;
+  continueLabel?: string;
+  emptyContinueLabel?: string;
+  heading?: string;
+  isContinueBusy?: boolean;
   job: JobViewData;
+  kicker?: string;
+  lead?: ReactNode;
   onContinue: (resume: PrototypeResumeRecord) => void;
   onResumeStateChange: (state: CandidateResumeState) => void;
   resumeState: CandidateResumeState;
   session: CandidateSession;
+  showBackAction?: boolean;
+  showCompanyHeading?: boolean;
+  variant?: "application" | "home";
 }
 
 interface PendingUpload {
@@ -686,11 +695,20 @@ function DeleteFileDialog({
 
 export function ResumeUploadSection({
   backHref,
+  continueLabel = "Continue",
+  emptyContinueLabel = "Continue",
+  heading = "Upload your resume",
+  isContinueBusy = false,
   job,
+  kicker = "Your resume",
+  lead,
   onContinue,
   onResumeStateChange,
   resumeState,
-  session
+  session,
+  showBackAction = true,
+  showCompanyHeading = true,
+  variant = "application"
 }: ResumeUploadSectionProps): JSX.Element {
   const fileInputId = useId();
   const resumeSelectionName = `${fileInputId}-resume-selection`;
@@ -719,7 +737,16 @@ export function ResumeUploadSection({
     [deleteResumeId, resumeState.resumes]
   );
   const hasSavedResume = resumeState.resumes.length > 0;
-  const canContinue = Boolean(selectedResume) && !isUploading && resumeState.resumes.length > 0;
+  const canContinue =
+    Boolean(selectedResume) && !isUploading && !isContinueBusy && resumeState.resumes.length > 0;
+  const continueButtonLabel = selectedResume || isContinueBusy ? continueLabel : emptyContinueLabel;
+  const sectionClassName = [
+    "resume-upload-card",
+    "surface-card",
+    variant === "home" ? "resume-upload-card--home" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   useEffect(() => {
     return () => {
@@ -989,16 +1016,20 @@ export function ResumeUploadSection({
   };
 
   return (
-    <section className="resume-upload-card surface-card" aria-labelledby="resume-upload-heading">
+    <section className={sectionClassName} aria-labelledby="resume-upload-heading">
       <header className="resume-upload-card__header">
-        <p className="section-kicker">Your resume</p>
-        <h1 id="resume-upload-heading">Upload your resume</h1>
+        <p className="section-kicker">{kicker}</p>
+        <h1 id="resume-upload-heading">{heading}</h1>
         <p className="resume-upload-card__lead">
-          Attach a recent resume to continue with this application. We’ll use it to move your profile forward for the <span>{job.title}</span> role.
+          {lead ?? (
+            <>
+              Attach a recent resume to continue with this application. We’ll use it to move your profile forward for the <span>{job.title}</span> role.
+            </>
+          )}
         </p>
       </header>
 
-      <CompanyApplicationHeading job={job} session={session} />
+      {showCompanyHeading ? <CompanyApplicationHeading job={job} session={session} /> : null}
 
       <input
         accept={FILE_ACCEPT}
@@ -1145,21 +1176,23 @@ export function ResumeUploadSection({
       <footer className="resume-upload-card__footer">
         <div className="resume-upload-card__footer-rule" aria-hidden="true" />
         <div className="resume-upload-card__footer-actions">
-          <TransitionLink
-            className="button button--ghost"
-            direction="back"
-            href={backHref}
-            source="upload-back-to-job"
-          >
-            Back
-          </TransitionLink>
+          {showBackAction && backHref ? (
+            <TransitionLink
+              className="button button--ghost"
+              direction="back"
+              href={backHref}
+              source="upload-back-to-job"
+            >
+              Back
+            </TransitionLink>
+          ) : null}
           <button
             className="button button--job-primary"
             disabled={!canContinue}
             onClick={handleContinue}
             type="button"
           >
-            Continue
+            {continueButtonLabel}
           </button>
         </div>
       </footer>

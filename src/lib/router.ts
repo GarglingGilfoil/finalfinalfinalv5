@@ -6,11 +6,19 @@ export type JobViewMotionVariant = "drift" | "arrival";
 export const FINAL_JOB_VIEW_LAYOUT: JobViewLayoutVariant = 3;
 export const FINAL_JOB_VIEW_MOTION: JobViewMotionVariant = "drift";
 
+export interface HomeRoute {
+  kind: "home";
+}
+
 export interface JobViewRoute {
   kind: "job-view";
   jobId: string;
   layout: JobViewLayoutVariant;
   motion: JobViewMotionVariant;
+}
+
+export interface JobSearchRoute {
+  kind: "job-search";
 }
 
 export interface ApplicationAuthRoute {
@@ -55,7 +63,9 @@ export interface CandidateProfileRoute {
 }
 
 export type AppRoute =
+  | HomeRoute
   | JobViewRoute
+  | JobSearchRoute
   | ApplicationAuthRoute
   | ApplicationUploadRoute
   | ApplicationParsingRoute
@@ -65,8 +75,18 @@ export type AppRoute =
   | ApplicationConfirmRoute
   | CandidateProfileRoute;
 
-const REFERENCE_JOB_ID = "196794136";
+export const REFERENCE_JOB_ID = "196794136";
 const APP_ROUTE_CHANGE_EVENT = "ditto-jobs:route-change";
+
+interface JobSearchPathParams {
+  city?: string | null;
+  country?: string | null;
+  intent?: string | null;
+  location?: string | null;
+  source?: string | null;
+  state?: string | null;
+  title?: string | null;
+}
 
 export interface AppNavigationState<TPayload = Record<string, unknown>> {
   payload?: TPayload;
@@ -89,6 +109,48 @@ export function parseAuthMode(search: string): ApplicationAuthMode {
 
 export function buildJobViewPath(jobId: string): string {
   return `/jobs/${jobId}`;
+}
+
+export function buildJobSearchPath(params: JobSearchPathParams = {}): string {
+  const searchParams = new URLSearchParams();
+  const trimmedTitle = params.title?.trim();
+  const trimmedLocation = params.location?.trim();
+  const trimmedCountry = params.country?.trim();
+  const trimmedCity = params.city?.trim();
+  const trimmedSource = params.source?.trim();
+  const trimmedIntent = params.intent?.trim();
+  const trimmedState = params.state?.trim();
+
+  if (trimmedTitle) {
+    searchParams.set("title", trimmedTitle);
+  }
+
+  if (trimmedSource) {
+    searchParams.set("source", trimmedSource);
+  }
+
+  if (trimmedIntent) {
+    searchParams.set("intent", trimmedIntent);
+  }
+
+  if (trimmedState) {
+    searchParams.set("state", trimmedState);
+  }
+
+  if (trimmedLocation) {
+    searchParams.set("location", trimmedLocation);
+  }
+
+  if (trimmedCountry) {
+    searchParams.set("country", trimmedCountry);
+  }
+
+  if (trimmedCity) {
+    searchParams.set("city", trimmedCity);
+  }
+
+  const queryString = searchParams.toString();
+  return `/jobs/search${queryString ? `?${queryString}` : ""}`;
 }
 
 export function buildApplicationAuthPath(
@@ -168,10 +230,22 @@ export function subscribeToRouteChanges(onChange: () => void): () => void {
 export function resolveRoute(location: Pick<Location, "pathname" | "search">): AppRoute {
   const trimmedPath = location.pathname.replace(/\/+$/, "") || "/";
 
+  if (trimmedPath === "/") {
+    return {
+      kind: "home"
+    };
+  }
+
   if (trimmedPath === "/profile") {
     return {
       kind: "candidate-profile",
       jobId: REFERENCE_JOB_ID
+    };
+  }
+
+  if (trimmedPath === "/jobs/search") {
+    return {
+      kind: "job-search"
     };
   }
 

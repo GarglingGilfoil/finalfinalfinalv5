@@ -7,13 +7,15 @@ import { ApplicationParsingPage } from "../pages/ApplicationParsingPage";
 import { ApplicationRoleQuestionsPage } from "../pages/ApplicationRoleQuestionsPage";
 import { ApplicationUploadPage } from "../pages/ApplicationUploadPage";
 import { CandidateProfilePage } from "../pages/CandidateProfilePage";
+import { HomePage } from "../pages/HomePage";
+import { JobSearchPlaceholderPage } from "../pages/JobSearchPlaceholderPage";
 import { JobViewPage } from "../pages/JobViewPage";
 import {
   ApplicationRouteTransition,
   ApplicationRouteTransitionProvider
 } from "../components/application/ApplicationRouteTransition";
 import { PageChromeFooter, PageChromeHeader } from "../components/PageChrome";
-import { resolveRoute, subscribeToRouteChanges } from "../lib/router";
+import { REFERENCE_JOB_ID, resolveRoute, subscribeToRouteChanges } from "../lib/router";
 
 export function App(): JSX.Element {
   const [routeVersion, setRouteVersion] = useState(0);
@@ -27,7 +29,11 @@ export function App(): JSX.Element {
 
   let content: JSX.Element;
 
-  if (route.kind === "application-auth") {
+  if (route.kind === "home") {
+    content = <HomePage />;
+  } else if (route.kind === "job-search") {
+    content = <JobSearchPlaceholderPage />;
+  } else if (route.kind === "application-auth") {
     content = <ApplicationAuthPage initialMode={route.mode} jobId={route.jobId} />;
   } else if (route.kind === "application-upload") {
     content = <ApplicationUploadPage jobId={route.jobId} />;
@@ -49,10 +55,13 @@ export function App(): JSX.Element {
     );
   }
 
+  const chromeJobId =
+    "jobId" in route ? route.jobId : route.kind === "job-search" ? REFERENCE_JOB_ID : undefined;
+
   return (
     <ApplicationRouteTransitionProvider route={route}>
       <div className="app-shell">
-        <PageChromeHeader jobId={route.jobId} />
+        <PageChromeHeader jobId={chromeJobId} showSearch={route.kind !== "home"} />
         <main className="app-main">
           <ApplicationRouteTransition route={route}>{content}</ApplicationRouteTransition>
         </main>
