@@ -174,20 +174,24 @@ const VALUE_CARDS = [
 
 const SMART_QUICK_CHIPS = [
   {
-    label: "Add current title",
+    label: "+ Current Title",
     text: "My current role is "
   },
   {
-    label: "Add years of experience",
+    label: "+ Years of Experience",
     text: "I have  years of experience in "
   },
   {
-    label: "Add preferred location",
+    label: "+ Preferred Location",
     text: "I am looking for roles in "
   },
   {
-    label: "Add key skills",
+    label: "+ Key Skills",
     text: "My key skills include "
+  },
+  {
+    label: "+ Education",
+    text: "My education includes "
   }
 ] as const;
 
@@ -550,16 +554,14 @@ export function HomePage(): JSX.Element {
       <section className="home-hero" aria-labelledby="home-title">
         <span className="home-hero__shimmer" aria-hidden="true" />
         <div className="home-hero__copy">
-          <h1 aria-label="One profile. Better-fit jobs." id="home-title">
-            <span aria-hidden="true" className="home-hero__headline-desktop">One profile.</span>
-            <span aria-hidden="true" className="home-hero__headline-desktop">Better-fit jobs.</span>
-            <span aria-hidden="true" className="home-hero__headline-mobile">One profile.</span>
-            <span aria-hidden="true" className="home-hero__headline-mobile">Better-fit</span>
-            <span aria-hidden="true" className="home-hero__headline-mobile">jobs.</span>
+          <h1 aria-label="Let’s get to work." id="home-title">
+            <span aria-hidden="true" className="home-hero__headline-desktop">Let’s get to work.</span>
+            <span aria-hidden="true" className="home-hero__headline-mobile">Let’s get</span>
+            <span aria-hidden="true" className="home-hero__headline-mobile">to work.</span>
           </h1>
           <p>
             Search directly, upload your CV, or let Ditto match your profile{" "}
-            <span className="home-hero__desktop-break">to roles that fit.</span>
+            <span className="home-hero__desktop-break">to jobs that actually suit you.</span>
           </p>
         </div>
 
@@ -720,7 +722,6 @@ export function HomePage(): JSX.Element {
                 {homeJob ? (
                   <ResumeUploadSection
                     continueLabel={uploadLoadingLabel ?? "Find jobs from my CV"}
-                    emptyContinueLabel="Upload a CV to continue"
                     heading={HOME_PANEL_COPY["upload-cv"].title}
                     isContinueBusy={Boolean(uploadLoadingLabel)}
                     job={homeJob}
@@ -732,6 +733,7 @@ export function HomePage(): JSX.Element {
                     session={uploadSession}
                     showBackAction={false}
                     showCompanyHeading={false}
+                    showContinueWhenEmpty={false}
                     variant="home"
                   />
                 ) : null}

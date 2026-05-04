@@ -42,6 +42,7 @@ interface ResumeUploadSectionProps {
   session: CandidateSession;
   showBackAction?: boolean;
   showCompanyHeading?: boolean;
+  showContinueWhenEmpty?: boolean;
   variant?: "application" | "home";
 }
 
@@ -708,6 +709,7 @@ export function ResumeUploadSection({
   session,
   showBackAction = true,
   showCompanyHeading = true,
+  showContinueWhenEmpty = true,
   variant = "application"
 }: ResumeUploadSectionProps): JSX.Element {
   const fileInputId = useId();
@@ -740,6 +742,8 @@ export function ResumeUploadSection({
   const canContinue =
     Boolean(selectedResume) && !isUploading && !isContinueBusy && resumeState.resumes.length > 0;
   const continueButtonLabel = selectedResume || isContinueBusy ? continueLabel : emptyContinueLabel;
+  const shouldShowContinueAction = showContinueWhenEmpty || Boolean(selectedResume) || isContinueBusy;
+  const shouldRenderFooter = Boolean(showBackAction && backHref) || shouldShowContinueAction;
   const sectionClassName = [
     "resume-upload-card",
     "surface-card",
@@ -1173,29 +1177,33 @@ export function ResumeUploadSection({
         ) : null}
       </div>
 
-      <footer className="resume-upload-card__footer">
-        <div className="resume-upload-card__footer-rule" aria-hidden="true" />
-        <div className="resume-upload-card__footer-actions">
-          {showBackAction && backHref ? (
-            <TransitionLink
-              className="button button--ghost"
-              direction="back"
-              href={backHref}
-              source="upload-back-to-job"
-            >
-              Back
-            </TransitionLink>
-          ) : null}
-          <button
-            className="button button--job-primary"
-            disabled={!canContinue}
-            onClick={handleContinue}
-            type="button"
-          >
-            {continueButtonLabel}
-          </button>
-        </div>
-      </footer>
+      {shouldRenderFooter ? (
+        <footer className="resume-upload-card__footer">
+          <div className="resume-upload-card__footer-rule" aria-hidden="true" />
+          <div className="resume-upload-card__footer-actions">
+            {showBackAction && backHref ? (
+              <TransitionLink
+                className="button button--ghost"
+                direction="back"
+                href={backHref}
+                source="upload-back-to-job"
+              >
+                Back
+              </TransitionLink>
+            ) : null}
+            {shouldShowContinueAction ? (
+              <button
+                className="button button--job-primary"
+                disabled={!canContinue}
+                onClick={handleContinue}
+                type="button"
+              >
+                {continueButtonLabel}
+              </button>
+            ) : null}
+          </div>
+        </footer>
+      ) : null}
 
       {previewResume ? (
         <FilePreviewDialog

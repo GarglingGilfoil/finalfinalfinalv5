@@ -7810,8 +7810,38 @@ select {
 
 .home-field textarea {
   min-height: 11.75rem;
-  resize: vertical;
+  resize: none;
   line-height: 1.55;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(15, 20, 29, 0.2) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.home-field textarea::-webkit-scrollbar {
+  width: 0.46rem;
+}
+
+.home-field textarea::-webkit-scrollbar-track {
+  margin-block: 0.56rem;
+  background: transparent;
+}
+
+.home-field textarea::-webkit-scrollbar-thumb {
+  min-height: 2.2rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(15, 20, 29, 0.2);
+  background-clip: content-box;
+}
+
+.home-field textarea:hover::-webkit-scrollbar-thumb,
+.home-field textarea:focus::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 20, 29, 0.34);
+}
+
+.home-field textarea::-webkit-scrollbar-thumb:active {
+  background-color: rgba(8, 94, 139, 0.45);
 }
 
 .home-field input::placeholder,
@@ -7952,7 +7982,7 @@ select {
 }
 
 .resume-upload-card--home .resume-upload-card__footer-actions {
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .resume-upload-card--home .resume-upload-card__footer-actions .button--job-primary {
@@ -8045,7 +8075,7 @@ select {
 }
 
 .home-panel-cta {
-  justify-self: start;
+  justify-self: end;
 }
 
 .home-panel-cta:disabled,
