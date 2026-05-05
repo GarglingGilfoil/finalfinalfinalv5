@@ -81,15 +81,28 @@ const APP_ROUTE_CHANGE_EVENT = "ditto-jobs:route-change";
 interface JobSearchPathParams {
   city?: string | null;
   country?: string | null;
+  company?: string | readonly string[] | null;
+  date?: string | null;
+  distance?: string | null;
+  experience?: string | readonly string[] | null;
+  industry?: string | readonly string[] | null;
+  jobType?: string | readonly string[] | null;
   intent?: string | null;
   location?: string | null;
+  sort?: string | null;
   source?: string | null;
   state?: string | null;
   title?: string | null;
+  workplace?: string | readonly string[] | null;
 }
 
 export interface AppNavigationState<TPayload = Record<string, unknown>> {
   payload?: TPayload;
+}
+
+export interface SearchResultsNavigationPayload {
+  fromSearchResults: true;
+  returnTo: string;
 }
 
 interface NavigateOptions<TPayload = Record<string, unknown>> {
@@ -113,6 +126,23 @@ export function buildJobViewPath(jobId: string): string {
 
 export function buildJobSearchPath(params: JobSearchPathParams = {}): string {
   const searchParams = new URLSearchParams();
+  const setListParam = (
+    key: string,
+    value: string | readonly string[] | null | undefined
+  ): void => {
+    const values = typeof value === "string"
+      ? value
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+      : value
+        ? value.map((item) => item.trim()).filter(Boolean)
+        : [];
+
+    if (values.length > 0) {
+      searchParams.set(key, values.join(","));
+    }
+  };
   const trimmedTitle = params.title?.trim();
   const trimmedLocation = params.location?.trim();
   const trimmedCountry = params.country?.trim();
@@ -120,6 +150,9 @@ export function buildJobSearchPath(params: JobSearchPathParams = {}): string {
   const trimmedSource = params.source?.trim();
   const trimmedIntent = params.intent?.trim();
   const trimmedState = params.state?.trim();
+  const trimmedDate = params.date?.trim();
+  const trimmedDistance = params.distance?.trim();
+  const trimmedSort = params.sort?.trim();
 
   if (trimmedTitle) {
     searchParams.set("title", trimmedTitle);
@@ -147,6 +180,24 @@ export function buildJobSearchPath(params: JobSearchPathParams = {}): string {
 
   if (trimmedCity) {
     searchParams.set("city", trimmedCity);
+  }
+
+  if (trimmedDate) {
+    searchParams.set("date", trimmedDate);
+  }
+
+  if (trimmedDistance) {
+    searchParams.set("distance", trimmedDistance);
+  }
+
+  setListParam("workplace", params.workplace);
+  setListParam("jobType", params.jobType);
+  setListParam("experience", params.experience);
+  setListParam("industry", params.industry);
+  setListParam("company", params.company);
+
+  if (trimmedSort) {
+    searchParams.set("sort", trimmedSort);
   }
 
   const queryString = searchParams.toString();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { getJobView, readJobView } from "../api/jobs";
 import {
   CompanySummary,
@@ -12,8 +12,11 @@ import { JobBodySections } from "../components/JobBodySections";
 import type { JobViewData } from "../contracts/job-view";
 import {
   buildApplicationAuthPath,
+  navigateTo,
+  readNavigationState,
   type JobViewLayoutVariant,
-  type JobViewMotionVariant
+  type JobViewMotionVariant,
+  type SearchResultsNavigationPayload
 } from "../lib/router";
 
 interface JobViewPageProps {
@@ -36,6 +39,31 @@ interface LayoutBlocks {
 }
 
 type LoadState = "loading" | "ready" | "missing";
+
+function BackToResultsButton({ href }: { href: string }): JSX.Element {
+  function handleClick(event: ReactMouseEvent<HTMLAnchorElement>): void {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.currentTarget.target === "_blank"
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateTo(href);
+  }
+
+  return (
+    <a className="job-view__back-to-results" href={href} onClick={handleClick}>
+      <span aria-hidden="true">←</span>
+      Back to Results
+    </a>
+  );
+}
 
 function useMediaQuery(query: string): boolean {
   const getMatches = (): boolean => window.matchMedia(query).matches;
@@ -374,11 +402,13 @@ function renderMobileLayout(
 function ReadyState({
   initialLayout,
   initialMotion,
-  job
+  job,
+  searchResultsReturnHref
 }: {
   initialLayout: JobViewLayoutVariant;
   initialMotion: JobViewMotionVariant;
   job: JobViewData;
+  searchResultsReturnHref: string | null;
 }): JSX.Element {
   const isMobile = useMediaQuery("(max-width: 720px)");
   const [isMotionReady, setIsMotionReady] = useState(false);
@@ -479,6 +509,7 @@ function ReadyState({
     >
       <JobViewAmbient motion={activeMotion} />
       <section className="job-view__stack">
+        {searchResultsReturnHref ? <BackToResultsButton href={searchResultsReturnHref} /> : null}
         {isMobile
           ? renderMobileLayout(blocks, activeMotion, isMotionReady)
           : renderDesktopLayout(activeLayout, activeMotion, isMotionReady, blocks)}
@@ -497,6 +528,12 @@ export function JobViewPage({
   const initialJob = useMemo(() => readJobView(jobId), [jobId]);
   const [state, setState] = useState<LoadState>(() => (initialJob ? "ready" : "loading"));
   const [job, setJob] = useState<JobViewData | null>(initialJob);
+  const navigationState = readNavigationState<SearchResultsNavigationPayload>();
+  const searchResultsReturnHref =
+    navigationState?.payload?.fromSearchResults &&
+    navigationState.payload.returnTo.startsWith("/jobs/search")
+      ? navigationState.payload.returnTo
+      : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -532,5 +569,12 @@ export function JobViewPage({
     return <MissingState />;
   }
 
-  return <ReadyState initialLayout={initialLayout} initialMotion={initialMotion} job={job} />;
+  return (
+    <ReadyState
+      initialLayout={initialLayout}
+      initialMotion={initialMotion}
+      job={job}
+      searchResultsReturnHref={searchResultsReturnHref}
+    />
+  );
 }

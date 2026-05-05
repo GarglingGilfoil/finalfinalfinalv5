@@ -37,7 +37,9 @@ export interface ApplicationLocationFieldProps {
   detectionContext?: LocationDetectionContext;
   disabled?: boolean;
   error?: string;
+  fallbackDisplayValue?: string;
   hint?: string;
+  hideCountryTrigger?: boolean;
   inputRef?: MutableRefObject<HTMLInputElement | null> | null;
   label?: string;
   name?: string;
@@ -129,7 +131,9 @@ export function ApplicationLocationField({
   detectionContext,
   disabled = false,
   error,
+  fallbackDisplayValue,
   hint,
+  hideCountryTrigger = false,
   inputRef = null,
   label = "Location",
   name,
@@ -157,7 +161,7 @@ export function ApplicationLocationField({
     initialCountry.country.isoCode
   );
   const [hasUserSetCountry, setHasUserSetCountry] = useState(false);
-  const [cityQuery, setCityQuery] = useState(formatCommittedCityLabel(value));
+  const [cityQuery, setCityQuery] = useState(formatCommittedCityLabel(value) || fallbackDisplayValue?.trim() || "");
   const [countryQuery, setCountryQuery] = useState("");
   const [isCityPanelOpen, setIsCityPanelOpen] = useState(false);
   const [isCountryPanelOpen, setIsCountryPanelOpen] = useState(false);
@@ -214,9 +218,9 @@ export function ApplicationLocationField({
 
   useEffect(() => {
     if (!isCityPanelOpen) {
-      setCityQuery(selectedCity?.displayLabel ?? formatCommittedCityLabel(value));
+      setCityQuery(selectedCity?.displayLabel || formatCommittedCityLabel(value) || fallbackDisplayValue?.trim() || "");
     }
-  }, [isCityPanelOpen, selectedCity, value]);
+  }, [fallbackDisplayValue, isCityPanelOpen, selectedCity, value]);
 
   useEffect(() => {
     if (!value) {
@@ -362,7 +366,7 @@ export function ApplicationLocationField({
     if (event.key === "Escape") {
       event.preventDefault();
       setIsCityPanelOpen(false);
-      setCityQuery(selectedCity?.displayLabel ?? formatCommittedCityLabel(value));
+      setCityQuery(selectedCity?.displayLabel || formatCommittedCityLabel(value) || fallbackDisplayValue?.trim() || "");
     }
   }
 
@@ -398,6 +402,7 @@ export function ApplicationLocationField({
       className="auth-field application-location-field"
       data-city-panel-open={isCityPanelOpen ? "true" : "false"}
       data-country-code={activeCountry.isoCode}
+      data-country-trigger-hidden={hideCountryTrigger ? "true" : "false"}
       data-country-panel-open={isCountryPanelOpen ? "true" : "false"}
       data-country-source={activeCountryCode || value?.countryCode ? "value" : initialCountry.source}
       data-has-selection={value ? "true" : "false"}
@@ -468,36 +473,38 @@ export function ApplicationLocationField({
           value={cityQuery}
         />
 
-        <button
-          aria-label={`Change country, currently ${activeCountry.name}`}
-          aria-controls={isCountryPanelOpen ? countryListboxId : undefined}
-          aria-expanded={isCountryPanelOpen}
-          aria-haspopup="dialog"
-          className="application-location-field__country-trigger"
-          data-country-code={activeCountry.isoCode}
-          disabled={disabled}
-          onClick={() => {
-            const nextOpenState = !isCountryPanelOpen;
-            setIsCountryPanelOpen(nextOpenState);
-            setIsCityPanelOpen(false);
-
-            if (nextOpenState) {
-              focusNextTick(countrySearchRef as MutableRefObject<HTMLElement | null>);
-            } else {
-              setCountryQuery("");
-              focusNextTick(cityInputRef as MutableRefObject<HTMLElement | null>);
-            }
-          }}
-          type="button"
-        >
-          <span
-            aria-hidden="true"
-            className="application-location-field__country-flag"
+        {hideCountryTrigger ? null : (
+          <button
+            aria-label={`Change country, currently ${activeCountry.name}`}
+            aria-controls={isCountryPanelOpen ? countryListboxId : undefined}
+            aria-expanded={isCountryPanelOpen}
+            aria-haspopup="dialog"
+            className="application-location-field__country-trigger"
             data-country-code={activeCountry.isoCode}
+            disabled={disabled}
+            onClick={() => {
+              const nextOpenState = !isCountryPanelOpen;
+              setIsCountryPanelOpen(nextOpenState);
+              setIsCityPanelOpen(false);
+
+              if (nextOpenState) {
+                focusNextTick(countrySearchRef as MutableRefObject<HTMLElement | null>);
+              } else {
+                setCountryQuery("");
+                focusNextTick(cityInputRef as MutableRefObject<HTMLElement | null>);
+              }
+            }}
+            type="button"
           >
-            {activeCountry.flag}
-          </span>
-        </button>
+            <span
+              aria-hidden="true"
+              className="application-location-field__country-flag"
+              data-country-code={activeCountry.isoCode}
+            >
+              {activeCountry.flag}
+            </span>
+          </button>
+        )}
 
         {name ? <input name={name} type="hidden" value={value?.label ?? ""} /> : null}
         {countryCodeName ? (

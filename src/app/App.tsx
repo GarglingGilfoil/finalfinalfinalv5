@@ -8,8 +8,8 @@ import { ApplicationRoleQuestionsPage } from "../pages/ApplicationRoleQuestionsP
 import { ApplicationUploadPage } from "../pages/ApplicationUploadPage";
 import { CandidateProfilePage } from "../pages/CandidateProfilePage";
 import { HomePage } from "../pages/HomePage";
-import { JobSearchPlaceholderPage } from "../pages/JobSearchPlaceholderPage";
 import { JobViewPage } from "../pages/JobViewPage";
+import { SearchResultsPage } from "../pages/SearchResultsPage";
 import {
   ApplicationRouteTransition,
   ApplicationRouteTransitionProvider
@@ -32,7 +32,7 @@ export function App(): JSX.Element {
   if (route.kind === "home") {
     content = <HomePage />;
   } else if (route.kind === "job-search") {
-    content = <JobSearchPlaceholderPage />;
+    content = <SearchResultsPage />;
   } else if (route.kind === "application-auth") {
     content = <ApplicationAuthPage initialMode={route.mode} jobId={route.jobId} />;
   } else if (route.kind === "application-upload") {
@@ -61,7 +61,10 @@ export function App(): JSX.Element {
   return (
     <ApplicationRouteTransitionProvider route={route}>
       <div className="app-shell">
-        <PageChromeHeader jobId={chromeJobId} showSearch={route.kind !== "home"} />
+        <PageChromeHeader
+          jobId={chromeJobId}
+          showSearch={route.kind !== "home" && route.kind !== "job-search"}
+        />
         <main className="app-main">
           <ApplicationRouteTransition route={route}>{content}</ApplicationRouteTransition>
         </main>
