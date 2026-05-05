@@ -70,7 +70,7 @@ const HOME_TABS: readonly HomeTab[] = [
   {
     description: "Fast keyword search by title, skill, company, or location.",
     id: "search",
-    label: "Search",
+    label: "Direct Search",
     icon: Search
   },
   {
@@ -82,7 +82,7 @@ const HOME_TABS: readonly HomeTab[] = [
   {
     description: "Upload a CV so Ditto can match your experience to roles.",
     id: "upload-cv",
-    label: "Upload CV",
+    label: "CV Match",
     icon: FileUp
   }
 ];
@@ -90,25 +90,21 @@ const HOME_TABS: readonly HomeTab[] = [
 const HOME_PANEL_COPY: Record<
   HomeTabId,
   {
-    kicker: string;
     title: string;
     description: string;
   }
 > = {
   search: {
-    kicker: "Fastest path",
     title: "Search directly",
-    description: "Type a role, skill, or company. Your location starts prefilled, and your profile can carry into the apply flow."
+    description: "Know what you’re looking for? Enter a role, skill, or company, choose your location, and Ditto will show matching jobs immediately. Best for quick searches when you already have a title or keyword in mind."
   },
   "smart-match": {
-    kicker: "Profile match",
     title: "Describe your ideal role",
-    description: "Best when your next move is easier to describe than to search for with one keyword."
+    description: "Tell Ditto what you want in plain language. Add your experience, skills, preferred location, industry, and work setup, and we’ll turn it into a smarter job search for you."
   },
   "upload-cv": {
-    kicker: "CV-led matching",
     title: "Let your CV do the searching",
-    description: "Upload your CV and Ditto will match your experience to relevant roles."
+    description: "Upload your CV and Ditto will read your experience, skills, and career history. We’ll use that context to match you with roles that fit what you’ve actually done."
   }
 };
 
@@ -447,8 +443,8 @@ export function HomePage(): JSX.Element {
             <span aria-hidden="true" className="home-hero__headline-mobile">to work.</span>
           </h1>
           <p>
-            Search directly, upload your CV, or let Ditto match your profile{" "}
-            <span className="home-hero__desktop-break">to jobs that actually suit you.</span>
+            Start with a search, a sentence, or your CV.{" "}
+            <span className="home-hero__desktop-break">Ditto brings the right roles closer.</span>
           </p>
         </div>
 
@@ -497,7 +493,6 @@ export function HomePage(): JSX.Element {
               role="tabpanel"
             >
               <div className="home-search-panel__intro">
-                <span>{HOME_PANEL_COPY.search.kicker}</span>
                 <h2>{HOME_PANEL_COPY.search.title}</h2>
                 <p>{HOME_PANEL_COPY.search.description}</p>
               </div>
@@ -539,7 +534,6 @@ export function HomePage(): JSX.Element {
               role="tabpanel"
             >
               <div className="home-search-panel__intro">
-                <span>{HOME_PANEL_COPY["smart-match"].kicker}</span>
                 <h2>{HOME_PANEL_COPY["smart-match"].title}</h2>
                 <p>{HOME_PANEL_COPY["smart-match"].description}</p>
               </div>
@@ -611,7 +605,6 @@ export function HomePage(): JSX.Element {
                     heading={HOME_PANEL_COPY["upload-cv"].title}
                     isContinueBusy={Boolean(uploadLoadingLabel)}
                     job={homeJob}
-                    kicker={HOME_PANEL_COPY["upload-cv"].kicker}
                     lead={HOME_PANEL_COPY["upload-cv"].description}
                     onContinue={runCvMatch}
                     onResumeStateChange={setHomeResumeState}
@@ -620,6 +613,7 @@ export function HomePage(): JSX.Element {
                     showBackAction={false}
                     showCompanyHeading={false}
                     showContinueWhenEmpty={false}
+                    showKicker={false}
                     variant="home"
                   />
                 ) : null}

@@ -7770,6 +7770,7 @@ select {
 }
 
 .home-page {
+  --home-direct-baseline-height: 30rem;
   position: relative;
   isolation: isolate;
   width: 100%;
@@ -7804,11 +7805,17 @@ select {
   position: relative;
   display: grid;
   justify-items: center;
-  align-content: center;
+  align-content: start;
   gap: clamp(1.4rem, 3vw, 2.1rem);
   min-height: inherit;
   overflow: hidden;
-  padding: clamp(2.8rem, 5.6vw, 4.4rem) 1rem clamp(2.25rem, 4.8vw, 3.6rem);
+  padding:
+    max(
+      clamp(2.8rem, 5.6vw, 4.4rem),
+      calc((100dvh - var(--header-height) - 5.14rem - var(--home-direct-baseline-height)) / 2)
+    )
+    1rem
+    clamp(2.25rem, 4.8vw, 3.6rem);
   background: transparent;
   isolation: isolate;
 }
@@ -7906,6 +7913,7 @@ select {
   z-index: 1;
   isolation: isolate;
   display: grid;
+  align-items: stretch;
   grid-template-columns: minmax(13.25rem, 14.75rem) minmax(0, 1fr);
   width: min(100%, 65rem);
   overflow: visible;
@@ -8062,13 +8070,15 @@ select {
 }
 
 .home-search-content {
+  display: grid;
+  align-items: start;
   min-width: 0;
 }
 
 .home-search-panel {
   display: grid;
   gap: 1rem;
-  align-content: center;
+  align-content: start;
   min-height: 17.8rem;
   padding: clamp(1.3rem, 3vw, 2rem);
 }

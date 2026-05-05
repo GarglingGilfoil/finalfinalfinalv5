@@ -43,6 +43,7 @@ interface ResumeUploadSectionProps {
   showBackAction?: boolean;
   showCompanyHeading?: boolean;
   showContinueWhenEmpty?: boolean;
+  showKicker?: boolean;
   variant?: "application" | "home";
 }
 
@@ -710,6 +711,7 @@ export function ResumeUploadSection({
   showBackAction = true,
   showCompanyHeading = true,
   showContinueWhenEmpty = true,
+  showKicker = true,
   variant = "application"
 }: ResumeUploadSectionProps): JSX.Element {
   const fileInputId = useId();
@@ -1022,7 +1024,7 @@ export function ResumeUploadSection({
   return (
     <section className={sectionClassName} aria-labelledby="resume-upload-heading">
       <header className="resume-upload-card__header">
-        <p className="section-kicker">{kicker}</p>
+        {showKicker ? <p className="section-kicker">{kicker}</p> : null}
         <h1 id="resume-upload-heading">{heading}</h1>
         <p className="resume-upload-card__lead">
           {lead ?? (
