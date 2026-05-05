@@ -9,9 +9,7 @@ import {
 } from "react";
 import {
   ArrowRight,
-  BriefcaseBusiness,
   FileUp,
-  MapPin,
   Search,
   Sparkles
 } from "lucide-react";
@@ -21,7 +19,6 @@ import { ResumeUploadSection } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
 import {
   buildApplicationLocationValue,
-  findLocationCityInCountry,
   getLocationCountryByCode,
   getTopCitiesForCountry
 } from "../lib/location-data";
@@ -117,58 +114,29 @@ const HOME_PANEL_COPY: Record<
   }
 };
 
-const POPULAR_SEARCHES = [
-  "React Developer",
-  "Software Developer",
-  "Product Manager",
-  "Business Analyst",
-  "Sales Manager",
-  "Data Analyst"
+const PROFILE_COUNT_TOTAL = 3_076_161;
+const PROFILE_COUNT_START = 3_075_900;
+
+const PROFILE_PREVIEW_SKILLS = ["React", "TypeScript", "Next.js", "APIs", "Design Systems"] as const;
+const PROFILE_PREVIEW_STATUSES = ["CV parsed", "Skills identified", "Ready to match"] as const;
+const PROFILE_PREVIEW_MATCHES = [
+  "Senior Frontend Developer",
+  "Product Engineer",
+  "React Native Developer"
 ] as const;
 
-const POPULAR_LOCATIONS = [
+const PROOF_CARDS = [
   {
-    label: "Cape Town",
-    countryCode: "ZA",
-    cityName: "Cape Town"
+    title: "No blank profile forms.",
+    body: "Upload your CV and Ditto extracts the important details for you."
   },
   {
-    label: "Johannesburg",
-    countryCode: "ZA",
-    cityName: "Johannesburg"
+    title: "Matched on real context.",
+    body: "Your skills, location, experience, and career history shape the roles Ditto surfaces."
   },
   {
-    label: "Durban",
-    countryCode: "ZA",
-    cityName: "Durban"
-  },
-  {
-    label: "Pretoria",
-    countryCode: "ZA",
-    cityName: "Pretoria"
-  },
-  {
-    label: "Remote",
-    countryCode: null,
-    cityName: null
-  }
-] as const;
-
-const VALUE_CARDS = [
-  {
-    title: "Search directly",
-    body: "Find live jobs by title, skill, company, or location.",
-    icon: Search
-  },
-  {
-    title: "Match smarter",
-    body: "Use your background or CV to surface better-fit roles.",
-    icon: Sparkles
-  },
-  {
-    title: "Apply faster",
-    body: "Build your profile once and use it across applications.",
-    icon: BriefcaseBusiness
+    title: "Less repeat work.",
+    body: "Use one Ditto profile across applications, so every opportunity does not start from zero."
   }
 ] as const;
 
@@ -238,18 +206,6 @@ function resolveHomeDefaultLocation(session: CandidateSession | null): Applicati
   return buildNewYorkFallbackLocation();
 }
 
-function buildLocationFromPopularChip(
-  countryCode: string | null,
-  cityName: string | null
-): ApplicationLocationValue | null {
-  if (!countryCode || !cityName) {
-    return null;
-  }
-
-  const city = findLocationCityInCountry(countryCode, cityName);
-  return city ? buildApplicationLocationValue(city) : null;
-}
-
 function appendSmartTemplate(currentValue: string, templateText: string): string {
   const trimmedValue = currentValue.trimEnd();
   const separator = trimmedValue ? "\n" : "";
@@ -300,6 +256,135 @@ function HomeInlineAuthGate({
         </button>
       </div>
     </div>
+  );
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = (): void => setPrefersReducedMotion(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function formatProfileCount(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function HomeAnimatedCounter(): JSX.Element {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [displayCount, setDisplayCount] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return PROFILE_COUNT_START;
+    }
+
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? PROFILE_COUNT_TOTAL
+      : PROFILE_COUNT_START;
+  });
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setDisplayCount(PROFILE_COUNT_TOTAL);
+      return undefined;
+    }
+
+    let animationFrame = 0;
+    const startedAt = performance.now();
+    const duration = 1280;
+
+    const animate = (timestamp: number): void => {
+      const elapsed = Math.min((timestamp - startedAt) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - elapsed, 3);
+      const nextCount = Math.round(
+        PROFILE_COUNT_START + (PROFILE_COUNT_TOTAL - PROFILE_COUNT_START) * easedProgress
+      );
+
+      setDisplayCount(nextCount);
+
+      if (elapsed < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    setDisplayCount(PROFILE_COUNT_START);
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [prefersReducedMotion]);
+
+  return (
+    <div
+      aria-label={`${formatProfileCount(PROFILE_COUNT_TOTAL)} candidate profiles and counting`}
+      className="home-proof-counter"
+      role="text"
+    >
+      <strong aria-hidden="true">{formatProfileCount(displayCount)}</strong>
+      <span aria-hidden="true">candidate profiles and counting</span>
+    </div>
+  );
+}
+
+function HomeProfilePreview(): JSX.Element {
+  return (
+    <article className="home-profile-preview" aria-label="Example profile created from a CV">
+      <div className="home-profile-preview__label">Example profile created from a CV</div>
+
+      <div className="home-profile-preview__header">
+        <div className="home-profile-preview__avatar" aria-hidden="true">
+          SR
+        </div>
+        <div>
+          <h3>Senior React Developer</h3>
+          <p>Cape Town, South Africa</p>
+        </div>
+      </div>
+
+      <p className="home-profile-preview__summary">
+        5 years experience · Open to hybrid or remote
+      </p>
+
+      <div className="home-profile-preview__statuses" aria-label="Profile readiness">
+        {PROFILE_PREVIEW_STATUSES.map((status) => (
+          <span key={status}>{status}</span>
+        ))}
+      </div>
+
+      <div className="home-profile-preview__section">
+        <h4>Skills identified</h4>
+        <div className="home-profile-preview__skills">
+          {PROFILE_PREVIEW_SKILLS.map((skill) => (
+            <span key={skill}>{skill}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="home-profile-preview__section">
+        <h4>Matched roles</h4>
+        <div className="home-profile-preview__matches">
+          {PROFILE_PREVIEW_MATCHES.map((role) => (
+            <span key={role}>{role}</span>
+          ))}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -387,49 +472,6 @@ export function HomePage(): JSX.Element {
       {
         direction: "forward",
         source: "home-search"
-      }
-    );
-  }
-
-  function navigateToPopularSearch(title: string): void {
-    setActiveTab("search");
-    setJobTitle(title);
-    transitionTo(
-      buildJobSearchPath({
-        city: location?.cityName,
-        country: location?.countryCode,
-        location: location?.label,
-        title
-      }),
-      {
-        direction: "forward",
-        source: "home-popular-search"
-      }
-    );
-  }
-
-  function navigateToPopularLocation(
-    countryCode: string | null,
-    cityName: string | null,
-    label: string
-  ): void {
-    const nextLocation = buildLocationFromPopularChip(countryCode, cityName);
-    setActiveTab("search");
-
-    if (nextLocation) {
-      setLocation(nextLocation);
-    }
-
-    transitionTo(
-      buildJobSearchPath({
-        city: nextLocation?.cityName ?? undefined,
-        country: nextLocation?.countryCode ?? undefined,
-        location: nextLocation?.label ?? label,
-        title: jobTitle
-      }),
-      {
-        direction: "forward",
-        source: "home-popular-location"
       }
     );
   }
@@ -751,60 +793,30 @@ export function HomePage(): JSX.Element {
         </div>
       </section>
 
-      <section className="home-supporting" aria-label="Popular job search shortcuts">
-        <div className="home-popular">
-          <h2>Popular searches</h2>
-          <div className="home-chip-list">
-            {POPULAR_SEARCHES.map((title) => (
-              <button key={title} onClick={() => navigateToPopularSearch(title)} type="button">
-                {title}
-              </button>
-            ))}
+      <section className="home-proof" aria-labelledby="home-proof-title">
+        <div className="home-proof__grid">
+          <div className="home-proof__copy">
+            <span className="home-proof__eyebrow">Profile intelligence</span>
+            <h2 id="home-proof-title">Your CV becomes a profile Ditto can match.</h2>
+            <p>
+              Drop your CV. Ditto parses your experience, builds your profile, and uses it to
+              surface roles that make sense.
+            </p>
+            <HomeAnimatedCounter />
           </div>
+
+          <HomeProfilePreview />
         </div>
 
-        <div className="home-popular">
-          <h2>Popular locations</h2>
-          <div className="home-chip-list">
-            {POPULAR_LOCATIONS.map((locationChip) => (
-              <button
-                key={locationChip.label}
-                onClick={() =>
-                  navigateToPopularLocation(
-                    locationChip.countryCode,
-                    locationChip.cityName,
-                    locationChip.label
-                  )
-                }
-                type="button"
-              >
-                <MapPinIcon />
-                {locationChip.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="home-value-grid">
-          {VALUE_CARDS.map((card) => {
-            const Icon = card.icon;
-
-            return (
-              <article className="home-value-card" key={card.title}>
-                <span>
-                  <Icon aria-hidden="true" />
-                </span>
-                <h2>{card.title}</h2>
-                <p>{card.body}</p>
-              </article>
-            );
-          })}
+        <div className="home-proof-card-grid" aria-label="How Ditto helps candidates start faster">
+          {PROOF_CARDS.map((card) => (
+            <article className="home-proof-card" key={card.title}>
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+            </article>
+          ))}
         </div>
       </section>
     </div>
   );
-}
-
-function MapPinIcon(): JSX.Element {
-  return <MapPin aria-hidden="true" className="home-chip-list__icon" />;
 }
