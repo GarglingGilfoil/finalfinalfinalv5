@@ -1,7 +1,7 @@
 import type { AppRoute } from "./router";
 
 export type ApplicationTransitionDirection = "forward" | "back" | "neutral";
-export type ApplicationTransitionVariant = "standard" | "handoff" | "success" | "none";
+export type ApplicationTransitionVariant = "standard" | "handoff" | "success" | "blur" | "none";
 export type ApplicationTransitionSource =
   | "job-apply"
   | "auth-complete"
@@ -76,6 +76,10 @@ export function getApplicationTransitionExitDuration(
     return 190;
   }
 
+  if (variant === "blur") {
+    return 320;
+  }
+
   if (direction === "back") {
     return 150;
   }
@@ -97,6 +101,10 @@ export function getApplicationTransitionEnterDuration(
 
   if (variant === "success") {
     return 120;
+  }
+
+  if (variant === "blur") {
+    return 520;
   }
 
   if (variant === "handoff") {

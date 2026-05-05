@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent
+} from "react";
 import { getJobView, readJobView } from "../api/jobs";
 import {
   CompanySummary,
@@ -39,6 +45,23 @@ interface LayoutBlocks {
 }
 
 type LoadState = "loading" | "ready" | "missing";
+
+function resetJobViewScrollToTop(): void {
+  const appShell = document.querySelector<HTMLElement>(".app-shell");
+
+  appShell?.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "auto"
+  });
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "auto"
+  });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
 
 function BackToResultsButton({ href }: { href: string }): JSX.Element {
   function handleClick(event: ReactMouseEvent<HTMLAnchorElement>): void {
@@ -534,6 +557,17 @@ export function JobViewPage({
     navigationState.payload.returnTo.startsWith("/jobs/search")
       ? navigationState.payload.returnTo
       : null;
+
+  useLayoutEffect(() => {
+    if (!searchResultsReturnHref) {
+      return undefined;
+    }
+
+    resetJobViewScrollToTop();
+    const animationFrame = window.requestAnimationFrame(resetJobViewScrollToTop);
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [jobId, searchResultsReturnHref]);
 
   useEffect(() => {
     let cancelled = false;

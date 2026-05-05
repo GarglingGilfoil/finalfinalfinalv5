@@ -1017,10 +1017,6 @@ function SelectedJobPreview({
           <dd>{job.seniority}</dd>
         </div>
         <div>
-          <dt>Salary</dt>
-          <dd>{job.salaryType}</dd>
-        </div>
-        <div>
           <dt>Experience</dt>
           <dd>{job.experienceRequired}</dd>
         </div>

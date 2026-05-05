@@ -165,7 +165,7 @@ export function PageChromeHeader({
         <TransitionLink
           className="site-header__brand"
           direction="back"
-          href={jobId ? buildJobViewPath(jobId) : "/"}
+          href="/"
           source="header-brand"
         >
           <img
