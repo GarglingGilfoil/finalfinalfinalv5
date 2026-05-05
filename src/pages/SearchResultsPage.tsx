@@ -13,6 +13,7 @@ import {
   ApplicationLocationField,
   type ApplicationLocationValue
 } from "../components/ApplicationLocationField";
+import { normalizeAuthoredHtml } from "../components/JobBodySections";
 import {
   buildApplicationLocationValue,
   findLocationCityInCountry,
@@ -76,6 +77,7 @@ interface MockBaseJob {
   companyLogoUrl: string | null;
   companyName: string;
   description: string;
+  descriptionHtml?: string;
   experienceRequired: string;
   id: string;
   industries: string[];
@@ -720,6 +722,7 @@ function buildMockJobResults(): MockJobResult[] {
     return {
       ...base,
       datePostedLabel: formatDemoDate(postedDaysAgo),
+      descriptionHtml: index === 0 ? referenceJobView.jobDescriptionHtml : base.descriptionHtml,
       description: index === 0 ? REFERENCE_JOB_DESCRIPTION_TEXT : buildExpandedMockDescription(base),
       id: `search-${base.id}-${index + 1}`,
       location,
@@ -825,30 +828,140 @@ function JobResultSkeletonTile(): JSX.Element {
 }
 
 function IndustrySummaryValue({ industries }: { industries: string[] }): JSX.Element {
+  const overflowId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [primaryIndustry = "Not specified", ...additionalIndustries] = industries;
   const hasAdditionalIndustries = additionalIndustries.length > 0;
-  const allIndustriesLabel = industries.join(", ");
+  const additionalIndustriesLabel = additionalIndustries.join(", ");
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        window.requestAnimationFrame(() => {
+          triggerRef.current?.focus();
+        });
+      }
+    };
+
+    const handlePointerDown = (event: MouseEvent): void => {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsOpen(false);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isOpen]);
 
   return (
-    <span className="search-results-industry-summary">
-      <span className="search-results-industry-summary__primary">{primaryIndustry}</span>
+    <div className="search-results-industry-summary">
+      <span className="search-results-industry-summary__primary" title={primaryIndustry}>
+        {primaryIndustry}
+      </span>
       {hasAdditionalIndustries ? (
-        <span className="search-results-industry-overflow">
+        <span className="search-results-industry-overflow" data-open={isOpen ? "true" : undefined}>
           <button
-            aria-label={`Show all industries: ${allIndustriesLabel}`}
+            aria-controls={overflowId}
+            aria-expanded={isOpen}
+            aria-haspopup="dialog"
+            aria-label={
+              isOpen
+                ? "Hide additional industries"
+                : `Show ${additionalIndustries.length} more industries: ${additionalIndustriesLabel}`
+            }
             className="search-results-industry-overflow__trigger"
+            onClick={() => {
+              setIsOpen((current) => !current);
+            }}
+            ref={triggerRef}
+            title={`${additionalIndustries.length} more industries: ${additionalIndustriesLabel}`}
             type="button"
           >
-            +{additionalIndustries.length} more
+            +{additionalIndustries.length}
           </button>
-          <span className="search-results-industry-overflow__popover" role="tooltip">
-            {industries.map((industry) => (
-              <span key={industry}>{industry}</span>
-            ))}
-          </span>
+          {isOpen ? (
+            <div
+              aria-label="All industries"
+              className="search-results-industry-overflow__popover"
+              id={overflowId}
+              ref={panelRef}
+              role="dialog"
+            >
+              <div className="search-results-industry-overflow__header">
+                <p>Industries</p>
+                <button
+                  className="search-results-industry-overflow__close"
+                  onClick={() => {
+                    setIsOpen(false);
+                    window.requestAnimationFrame(() => {
+                      triggerRef.current?.focus();
+                    });
+                  }}
+                  type="button"
+                >
+                  Show less
+                </button>
+              </div>
+              <ul className="search-results-industry-overflow__list">
+                {industries.map((industry) => (
+                  <li key={industry}>
+                    <span className="search-results-industry-overflow__chip">{industry}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </span>
       ) : null}
-    </span>
+    </div>
+  );
+}
+
+function JobDescriptionPreview({
+  description,
+  descriptionHtml
+}: {
+  description: string;
+  descriptionHtml?: string;
+}): JSX.Element {
+  const normalizedHtml = useMemo(
+    () => (descriptionHtml ? normalizeAuthoredHtml(descriptionHtml) : null),
+    [descriptionHtml]
+  );
+
+  if (normalizedHtml) {
+    return (
+      <div
+        className="rich-text rich-text--body search-results-job-preview__rich-text"
+        dangerouslySetInnerHTML={{ __html: normalizedHtml }}
+      />
+    );
+  }
+
+  return (
+    <div className="rich-text rich-text--body search-results-job-preview__rich-text">
+      <p>{description}</p>
+    </div>
   );
 }
 
@@ -916,7 +1029,7 @@ function SelectedJobPreview({
       <section className="search-results-job-preview__section" aria-label="Job description preview">
         <h3>Job description</h3>
         <div className="search-results-job-preview__description">
-          <p>{job.description}</p>
+          <JobDescriptionPreview description={job.description} descriptionHtml={job.descriptionHtml} />
         </div>
         <a
           aria-label={showMoreLabel}

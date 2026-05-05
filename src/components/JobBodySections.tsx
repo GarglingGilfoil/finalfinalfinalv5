@@ -4,7 +4,7 @@ interface JobBodySectionsProps {
   html: string;
 }
 
-function normalizeAuthoredHtml(html: string): string {
+export function normalizeAuthoredHtml(html: string): string {
   const documentParser = new DOMParser().parseFromString(html, "text/html");
   const children = Array.from(documentParser.body.children);
   const wrapper = document.createElement("div");
