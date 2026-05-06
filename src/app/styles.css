@@ -696,8 +696,10 @@ select {
   isolation: isolate;
   overflow-x: clip;
   background:
-    radial-gradient(circle at 50% 64%, rgba(24, 181, 255, 0.18), transparent 34rem),
-    radial-gradient(circle at 15% 10%, rgba(24, 181, 255, 0.14), transparent 28rem),
+    radial-gradient(circle at -8% 12%, rgba(24, 181, 255, 0.2), transparent 31rem),
+    radial-gradient(circle at 104% 18%, rgba(116, 213, 255, 0.12), transparent 28rem),
+    radial-gradient(circle at 8% 82%, rgba(24, 181, 255, 0.13), transparent 30rem),
+    radial-gradient(circle at 98% 72%, rgba(8, 94, 139, 0.1), transparent 26rem),
     linear-gradient(180deg, #050a12 0%, #07111f 48%, #0a1220 100%);
 }
 
@@ -712,10 +714,10 @@ select {
 
 .app-main:has(.candidate-profile-page[data-profile-background="home"])::before {
   background:
-    radial-gradient(circle at 50% 0%, rgba(24, 181, 255, 0.16), transparent 28rem),
-    radial-gradient(circle at 82% 18%, rgba(116, 213, 255, 0.11), transparent 24rem),
-    radial-gradient(circle at 12% 78%, rgba(24, 181, 255, 0.1), transparent 26rem);
-  opacity: 0.82;
+    radial-gradient(circle at 4% 0%, rgba(116, 213, 255, 0.16), transparent 26rem),
+    radial-gradient(circle at 92% 12%, rgba(24, 181, 255, 0.09), transparent 22rem),
+    radial-gradient(circle at 14% 88%, rgba(24, 181, 255, 0.12), transparent 28rem);
+  opacity: 0.72;
 }
 
 .app-main:has(.candidate-profile-page[data-profile-background="home"])::after {
@@ -752,16 +754,38 @@ select {
       112deg,
       transparent 18%,
       rgba(24, 181, 255, 0.04) 29%,
-      rgba(116, 213, 255, 0.13) 39%,
-      rgba(255, 255, 255, 0.13) 48%,
-      rgba(24, 181, 255, 0.14) 57%,
+      rgba(116, 213, 255, 0.1) 39%,
+      rgba(255, 255, 255, 0.075) 48%,
+      rgba(24, 181, 255, 0.11) 57%,
       rgba(24, 181, 255, 0.045) 68%,
       transparent 82%
     );
   mix-blend-mode: screen;
-  opacity: 0.52;
+  opacity: 0.42;
   transform: translate3d(-24%, 0, 0) rotate(-3deg);
   animation: homeHeroShimmer 12s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.candidate-profile-page[data-profile-background="home"] {
+  --profile-home-surface: rgba(235, 244, 250, 0.9);
+  --profile-home-surface-strong: rgba(242, 248, 252, 0.94);
+  --profile-home-surface-muted: rgba(222, 235, 245, 0.86);
+  --profile-home-line: rgba(143, 213, 255, 0.2);
+  --profile-home-shadow: 0 24px 64px -44px rgba(0, 0, 0, 0.66);
+}
+
+.candidate-profile-page[data-profile-background="home"] .surface-card {
+  border-color: var(--profile-home-line);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.05), transparent 42%),
+    linear-gradient(180deg, var(--profile-home-surface-strong), var(--profile-home-surface));
+  box-shadow:
+    var(--profile-home-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.candidate-profile-page[data-profile-background="home"] .surface-card::before {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.54), rgba(116, 213, 255, 0.16), transparent 68%);
 }
 
 .profile-background-toggle {
@@ -917,6 +941,47 @@ select {
 .candidate-profile-cover__error {
   right: clamp(0.8rem, 2vw, 1.2rem);
   bottom: 3.58rem;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-hero {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(231, 241, 248, 0.92), rgba(218, 230, 240, 0.88));
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-cover {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(116, 213, 255, 0.22), transparent 32%),
+    radial-gradient(circle at 92% 10%, rgba(24, 181, 255, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(211, 230, 240, 0.96), rgba(185, 211, 226, 0.78) 50%, rgba(227, 238, 245, 0.9));
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-cover::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent 32%, rgba(255, 255, 255, 0.1) 68%, transparent),
+    radial-gradient(circle at 48% 118%, rgba(8, 94, 139, 0.12), transparent 44%);
+  opacity: 0.78;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-avatar__button {
+  border-color: rgba(248, 252, 255, 0.94);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.86), transparent 36%),
+    linear-gradient(145deg, rgba(24, 181, 255, 0.2), rgba(232, 243, 250, 0.92));
+  box-shadow:
+    0 20px 44px -24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(143, 213, 255, 0.12);
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-hero__action,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-cover__edit,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-avatar__edit {
+  border-color: rgba(143, 213, 255, 0.2);
+  background: rgba(251, 253, 255, 0.78);
+  box-shadow:
+    0 14px 32px -24px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
 }
 
 .candidate-profile-hero__identity {
@@ -1087,6 +1152,31 @@ select {
   display: none;
 }
 
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-tabs {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(225, 237, 246, 0.88), rgba(210, 224, 235, 0.84));
+  box-shadow:
+    0 20px 52px -38px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-tabs button {
+  color: rgba(46, 63, 82, 0.74);
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-tabs button:hover,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-tabs button.is-active {
+  background: rgba(248, 252, 255, 0.72);
+  color: #0f141d;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-tabs button.is-active {
+  box-shadow:
+    inset 0 0 0 1px rgba(24, 181, 255, 0.2),
+    0 10px 24px -20px rgba(8, 26, 46, 0.42);
+}
+
 .candidate-profile-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
@@ -1245,6 +1335,29 @@ select {
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-section,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-completion-prompt,
+.candidate-profile-page[data-profile-background="home"] .resume-upload-card {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.055), transparent 38%),
+    linear-gradient(180deg, rgba(241, 247, 251, 0.92), rgba(226, 237, 246, 0.88));
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-section--story,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-section--panel {
+  border-color: rgba(143, 213, 255, 0.17);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.06), transparent 38%),
+    linear-gradient(180deg, rgba(239, 247, 251, 0.92), rgba(222, 235, 244, 0.86));
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-completion-prompt {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(24, 181, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(234, 244, 250, 0.9), rgba(218, 232, 242, 0.86));
+}
+
 .candidate-profile-section--story .candidate-profile-section__header,
 .candidate-profile-section--panel .candidate-profile-section__header {
   align-items: center;
@@ -1353,6 +1466,10 @@ select {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(249, 253, 255, 0.94) 58%);
 }
 
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-about-preview__footer {
+  background: linear-gradient(180deg, rgba(226, 237, 246, 0), rgba(226, 237, 246, 0.94) 58%);
+}
+
 .candidate-profile-about-preview--expanded .candidate-profile-about-preview__footer {
   position: static;
   padding-top: 0.35rem;
@@ -1365,6 +1482,12 @@ select {
 .candidate-profile-files {
   display: grid;
   gap: 0.9rem;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-chip,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-save-status {
+  border-color: rgba(143, 213, 255, 0.22);
+  background: rgba(248, 252, 255, 0.62);
 }
 
 .candidate-profile-chip-list {
@@ -1406,6 +1529,12 @@ select {
   color: rgba(8, 53, 79, 0.82);
 }
 
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-chip-list--profile .candidate-profile-chip {
+  border-color: rgba(24, 181, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.7), rgba(217, 239, 250, 0.62));
+}
+
 .candidate-profile-chip--overflow {
   appearance: none;
   cursor: pointer;
@@ -1414,6 +1543,12 @@ select {
     linear-gradient(180deg, rgba(232, 247, 255, 0.86), rgba(216, 242, 255, 0.72));
   color: rgba(8, 94, 139, 0.94);
   font-weight: 850;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-chip--overflow {
+  border-color: rgba(24, 181, 255, 0.2);
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.68), rgba(211, 235, 248, 0.62));
 }
 
 .candidate-profile-chip--overflow:hover,
