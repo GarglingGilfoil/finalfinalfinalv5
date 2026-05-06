@@ -58,6 +58,7 @@ export interface ApplicationRouteTransitionContextValue extends ApplicationRoute
 
 interface ApplicationRouteTransitionProviderProps {
   children: ReactNode;
+  locationKey: string;
   route: AppRoute;
 }
 
@@ -130,43 +131,48 @@ function isCurrentRoutePath(path: string): boolean {
   return nextUrl.pathname === window.location.pathname && nextUrl.search === window.location.search;
 }
 
-function shouldResetScrollOnRouteChange(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 720px)").matches
-  );
-}
-
-function resetMobileRouteScroll(): void {
-  if (!shouldResetScrollOnRouteChange()) {
+function resetRouteScrollToTop(): void {
+  if (typeof window === "undefined" || window.location.hash.trim()) {
     return;
   }
 
   const appShell = document.querySelector<HTMLElement>(".app-shell");
-  appShell?.scrollTo({
-    top: 0,
-    left: 0,
-    behavior: "auto"
-  });
+  const scrollingElement = document.scrollingElement;
+
+  if (appShell) {
+    appShell.scrollTop = 0;
+    appShell.scrollLeft = 0;
+    appShell.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto"
+    });
+  }
+
+  if (scrollingElement) {
+    scrollingElement.scrollTop = 0;
+    scrollingElement.scrollLeft = 0;
+  }
+
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
   window.scrollTo({
     top: 0,
     left: 0,
     behavior: "auto"
   });
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
 }
 
 export function ApplicationRouteTransitionProvider({
   children,
+  locationKey,
   route
 }: ApplicationRouteTransitionProviderProps): JSX.Element {
   const prefersReducedMotion = usePrefersReducedMotion();
   const routeKey = getApplicationRouteKey(route);
   const previousRouteRef = useRef<AppRoute>(route);
   const previousRouteKeyRef = useRef(routeKey);
-  const scrollResetRouteKeyRef = useRef(routeKey);
+  const scrollResetLocationKeyRef = useRef(locationKey);
   const pendingTransitionRef = useRef<PendingTransitionMeta | null>(null);
   const timersRef = useRef<number[]>([]);
   const [transitionMeta, setTransitionMeta] =
@@ -294,13 +300,26 @@ export function ApplicationRouteTransitionProvider({
   }, [beginEnter, route, routeKey]);
 
   useLayoutEffect(() => {
-    if (scrollResetRouteKeyRef.current === routeKey) {
+    if (scrollResetLocationKeyRef.current === locationKey) {
       return;
     }
 
-    scrollResetRouteKeyRef.current = routeKey;
-    resetMobileRouteScroll();
-  }, [routeKey]);
+    scrollResetLocationKeyRef.current = locationKey;
+    resetRouteScrollToTop();
+  }, [locationKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("scrollRestoration" in window.history)) {
+      return undefined;
+    }
+
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {

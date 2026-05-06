@@ -4,12 +4,14 @@ import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTrans
 import { buildPrototypeSession, savePrototypeSession } from "../lib/prototype-auth";
 import {
   buildApplicationAuthPath,
-  buildApplicationUploadPath
+  buildApplicationUploadPath,
+  navigateTo
 } from "../lib/router";
 import type { ApplicationAuthMode, AuthProvider } from "../contracts/application";
 import type { JobViewData } from "../contracts/job-view";
 import { ApplicationAuthShell } from "../components/ApplicationAuthShell";
 import { ApplicationForgotPasswordForm } from "../components/ApplicationForgotPasswordForm";
+import { ApplicationSetNewPasswordForm } from "../components/ApplicationSetNewPasswordForm";
 import { ApplicationSignInForm } from "../components/ApplicationSignInForm";
 import { ApplicationSignUpForm } from "../components/ApplicationSignUpForm";
 
@@ -75,7 +77,11 @@ function ReadyState({
     const handlePopState = (): void => {
       const searchMode = new URLSearchParams(window.location.search).get("mode");
 
-      if (searchMode === "signup" || searchMode === "forgot-password") {
+      if (
+        searchMode === "signup" ||
+        searchMode === "forgot-password" ||
+        searchMode === "set-new-password"
+      ) {
         setMode(searchMode);
         return;
       }
@@ -91,7 +97,7 @@ function ReadyState({
 
   const updateMode = (nextMode: ApplicationAuthMode): void => {
     setMode(nextMode);
-    window.history.pushState({}, "", buildApplicationAuthPath(jobId, nextMode));
+    navigateTo(buildApplicationAuthPath(jobId, nextMode));
   };
 
   const handleAuthSuccess = async (input: AuthSuccessInput): Promise<void> => {
@@ -124,6 +130,10 @@ function ReadyState({
 
         {mode === "forgot-password" ? (
           <ApplicationForgotPasswordForm onModeChange={updateMode} />
+        ) : null}
+
+        {mode === "set-new-password" ? (
+          <ApplicationSetNewPasswordForm onModeChange={updateMode} />
         ) : null}
       </ApplicationAuthShell>
     </div>

@@ -84,7 +84,7 @@ export const referenceJobView: JobViewData = {
   ].join(""),
   companyDescriptionHtml:
     "<p>Capitec Bank is a South African retail bank focused on simplified banking, accessible digital tools, and client-first financial services. With a strong national presence and a digital-first service model, it serves personal and business clients through branches, mobile banking, and a streamlined product offering.</p>",
-  companyCoverImageUrl: "/company/standard-bank-group-cover.jpeg",
+  companyCoverImageUrl: "/company/capitec-bank-on-better-cover.svg",
   companyLogoUrl: "/company/capitec-bank-logo.jpg",
   companyUrl: "https://www.capitecbank.co.za",
   applyUrl: "https://www.ditto.jobs/application?job_id=196794136",

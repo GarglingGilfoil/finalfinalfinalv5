@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
   type MouseEvent as ReactMouseEvent
@@ -45,23 +44,6 @@ interface LayoutBlocks {
 }
 
 type LoadState = "loading" | "ready" | "missing";
-
-function resetJobViewScrollToTop(): void {
-  const appShell = document.querySelector<HTMLElement>(".app-shell");
-
-  appShell?.scrollTo({
-    top: 0,
-    left: 0,
-    behavior: "auto"
-  });
-  window.scrollTo({
-    top: 0,
-    left: 0,
-    behavior: "auto"
-  });
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-}
 
 function BackToResultsButton({ href }: { href: string }): JSX.Element {
   function handleClick(event: ReactMouseEvent<HTMLAnchorElement>): void {
@@ -200,23 +182,6 @@ function JobCoverImage({ job }: { job: JobViewData }): JSX.Element | null {
   return (
     <div className="job-sheet__cover-media" aria-hidden="true">
       <img alt="" src={job.companyCoverImageUrl} />
-    </div>
-  );
-}
-
-function JobViewAmbient({ motion }: { motion: JobViewMotionVariant }): JSX.Element | null {
-  if (motion !== "drift") {
-    return null;
-  }
-
-  return (
-    <div aria-hidden="true" className="job-view__ambient">
-      <span className="job-view__ambient-field" />
-      <span className="job-view__ambient-glow job-view__ambient-glow--left" />
-      <span className="job-view__ambient-glow job-view__ambient-glow--right" />
-      <span className="job-view__ambient-plane" />
-      <span className="job-view__ambient-trace" />
-      <span className="job-view__ambient-veil" />
     </div>
   );
 }
@@ -524,21 +489,29 @@ function ReadyState({
   return (
     <div
       className={[
-        "job-view__shell",
-        activeMotion === "drift" ? "job-view__shell--motion-drift" : ""
+        "job-view-page",
+        activeMotion === "drift" ? "job-view-page--motion-drift" : ""
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <JobViewAmbient motion={activeMotion} />
-      <section className="job-view__stack">
-        {searchResultsReturnHref ? <BackToResultsButton href={searchResultsReturnHref} /> : null}
-        {isMobile
-          ? renderMobileLayout(blocks, activeMotion, isMotionReady)
-          : renderDesktopLayout(activeLayout, activeMotion, isMotionReady, blocks)}
-      </section>
+      <div
+        className={[
+          "job-view__shell",
+          activeMotion === "drift" ? "job-view__shell--motion-drift" : ""
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <section className="job-view__stack">
+          {searchResultsReturnHref ? <BackToResultsButton href={searchResultsReturnHref} /> : null}
+          {isMobile
+            ? renderMobileLayout(blocks, activeMotion, isMotionReady)
+            : renderDesktopLayout(activeLayout, activeMotion, isMotionReady, blocks)}
+        </section>
 
-      <RecommendedJobsSection jobs={job.recommendedJobs} />
+        <RecommendedJobsSection jobs={job.recommendedJobs} />
+      </div>
     </div>
   );
 }
@@ -557,17 +530,6 @@ export function JobViewPage({
     navigationState.payload.returnTo.startsWith("/jobs/search")
       ? navigationState.payload.returnTo
       : null;
-
-  useLayoutEffect(() => {
-    if (!searchResultsReturnHref) {
-      return undefined;
-    }
-
-    resetJobViewScrollToTop();
-    const animationFrame = window.requestAnimationFrame(resetJobViewScrollToTop);
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [jobId, searchResultsReturnHref]);
 
   useEffect(() => {
     let cancelled = false;

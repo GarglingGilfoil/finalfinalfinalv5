@@ -26,17 +26,21 @@ import {
 } from "../components/ApplicationPhoneField";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ProfileImageUploader } from "../components/ProfileImageUploader";
+import { ResumeUploadSection } from "../components/ResumeUploadSection";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { CareerEducationReviewList } from "./ApplicationCareerHistoryPage";
+import { referenceJobView } from "../config/reference-job";
 import type {
   CandidateLocationValue,
   CandidatePhoneNumberValue,
   CandidateProfilePictureValue,
+  CandidateResumeState,
   CandidateSession,
   PrototypeCareerEntry,
   PrototypeEducationEntry
 } from "../contracts/application";
 import type {
+  CandidateFileCategory,
   CandidateLanguageEntry,
   CandidateLanguageProficiency,
   CandidateMoneyValue,
@@ -59,6 +63,10 @@ import {
   savePrototypeProfileAsset
 } from "../lib/prototype-profile-assets";
 import { readPrototypeResumeAsset } from "../lib/prototype-resume-assets";
+import {
+  readOrCreatePrototypeResumeState,
+  savePrototypeResumeState
+} from "../lib/prototype-resume";
 import { readPrototypeSession } from "../lib/prototype-auth";
 import { buildApplicationAuthPath } from "../lib/router";
 
@@ -79,6 +87,7 @@ type ProfileTabId =
   | "about"
   | "experience"
   | "files";
+type ProfileBackgroundMode = "current" | "home";
 
 type ValidationErrors = Record<string, string | undefined>;
 
@@ -105,6 +114,7 @@ const PROFILE_FILE_ACCEPT =
   ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp";
 const PROFILE_FILE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const PROFILE_FILE_NAME_MAX_LENGTH = 50;
+const PROFILE_BACKGROUND_STORAGE_KEY = "ditto:candidate-profile-background";
 
 const LANGUAGE_PROFICIENCY_OPTIONS: CandidateLanguageProficiency[] = [
   "Native or bilingual proficiency",
@@ -144,6 +154,58 @@ function getFileExtensionFromName(fileName: string, fallback: string): string {
   }
 
   return extension.toUpperCase();
+}
+
+function readInitialProfileBackgroundMode(): ProfileBackgroundMode {
+  const profileBgParam = new URLSearchParams(window.location.search).get("profileBg");
+
+  if (profileBgParam === "home" || profileBgParam === "current") {
+    return profileBgParam;
+  }
+
+  try {
+    const storedMode = window.localStorage.getItem(PROFILE_BACKGROUND_STORAGE_KEY);
+
+    if (storedMode === "home" || storedMode === "current") {
+      return storedMode;
+    }
+  } catch {
+    return "current";
+  }
+
+  return "current";
+}
+
+function ProfileBackgroundToggle({
+  mode,
+  onChange
+}: {
+  mode: ProfileBackgroundMode;
+  onChange: (mode: ProfileBackgroundMode) => void;
+}): JSX.Element {
+  return (
+    <div className="profile-background-toggle" aria-label="Profile background design QA toggle">
+      <span>Profile background</span>
+      <div className="profile-background-toggle__options" role="group" aria-label="Profile background">
+        <button
+          aria-pressed={mode === "current"}
+          className={mode === "current" ? "is-active" : ""}
+          onClick={() => onChange("current")}
+          type="button"
+        >
+          Current
+        </button>
+        <button
+          aria-pressed={mode === "home"}
+          className={mode === "home" ? "is-active" : ""}
+          onClick={() => onChange("home")}
+          type="button"
+        >
+          Home
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function buildPdfPreviewUrl(objectUrl: string): string {
@@ -1635,6 +1697,63 @@ function ProfileDialogPortal({ children }: { children: ReactNode }): JSX.Element
   return createPortal(children, document.body);
 }
 
+function getProfileResumeFileCategory(index: number): CandidateFileCategory {
+  return index === 0 ? "CV / Resume" : "Other";
+}
+
+function buildProfileFilesFromResumeState(resumeState: CandidateResumeState): CandidateProfileFile[] {
+  return resumeState.resumes.map((resume, index) => ({
+    id: `profile-file-${resume.id}`,
+    category: getProfileResumeFileCategory(index),
+    fileName: resume.fileName,
+    fileSize: resume.fileSize,
+    fileExtension: resume.fileExtension.toUpperCase(),
+    uploadedAt: resume.uploadedAt,
+    source: "resume",
+    resumeRecord: resume
+  }));
+}
+
+function ProfileResumeFilesSection({
+  onChange,
+  session
+}: {
+  onChange: (files: CandidateProfileFile[]) => void;
+  session: CandidateSession;
+}): JSX.Element {
+  const [resumeState, setResumeState] = useState<CandidateResumeState>(() =>
+    readOrCreatePrototypeResumeState(session)
+  );
+
+  useEffect(() => {
+    setResumeState(readOrCreatePrototypeResumeState(session));
+  }, [session]);
+
+  const handleResumeStateChange = (nextState: CandidateResumeState): void => {
+    setResumeState(nextState);
+    savePrototypeResumeState(session.email, nextState);
+    onChange(buildProfileFilesFromResumeState(nextState));
+  };
+
+  return (
+    <ResumeUploadSection
+      heading="Files"
+      job={referenceJobView}
+      kicker="Candidate profile"
+      lead="Manage your resume files and keep the version recruiters see up to date."
+      onContinue={() => undefined}
+      onResumeStateChange={handleResumeStateChange}
+      resumeState={resumeState}
+      session={session}
+      showBackAction={false}
+      showCompanyHeading={false}
+      showContinueAction={false}
+      showContinueWhenEmpty={false}
+      variant="application"
+    />
+  );
+}
+
 function ProfileFilesSection({
   onChange,
   profile,
@@ -2044,9 +2163,17 @@ function ProfileFilesSection({
   );
 }
 
-function ProfileGuard(): JSX.Element {
+function ProfileGuard({
+  backgroundMode,
+  onBackgroundModeChange
+}: {
+  backgroundMode: ProfileBackgroundMode;
+  onBackgroundModeChange: (mode: ProfileBackgroundMode) => void;
+}): JSX.Element {
   return (
-    <div className="candidate-profile-page">
+    <div className="candidate-profile-page" data-profile-background={backgroundMode}>
+      <span aria-hidden="true" className="candidate-profile-bg-debug__shimmer" />
+      <ProfileBackgroundToggle mode={backgroundMode} onChange={onBackgroundModeChange} />
       <section className="candidate-profile-guard surface-card">
         <p className="section-kicker">Candidate profile</p>
         <h1>Sign in to view your profile</h1>
@@ -2065,6 +2192,9 @@ function ProfileGuard(): JSX.Element {
 
 export function CandidateProfilePage(): JSX.Element {
   const session = useMemo(() => readPrototypeSession(), []);
+  const [profileBackgroundMode, setProfileBackgroundMode] = useState<ProfileBackgroundMode>(
+    readInitialProfileBackgroundMode
+  );
   const [profile, setProfile] = useState<CandidateProfileState | null>(() =>
     session ? buildPrototypeCandidateProfile(session) : null
   );
@@ -2083,8 +2213,23 @@ export function CandidateProfilePage(): JSX.Element {
     };
   }, []);
 
+  const updateProfileBackgroundMode = (nextMode: ProfileBackgroundMode): void => {
+    setProfileBackgroundMode(nextMode);
+
+    try {
+      window.localStorage.setItem(PROFILE_BACKGROUND_STORAGE_KEY, nextMode);
+    } catch {
+      // Design QA preference only. Ignore storage failures.
+    }
+  };
+
   if (!session || !profile || !draftProfile) {
-    return <ProfileGuard />;
+    return (
+      <ProfileGuard
+        backgroundMode={profileBackgroundMode}
+        onBackgroundModeChange={updateProfileBackgroundMode}
+      />
+    );
   }
 
   const isDirty = JSON.stringify(profile) !== JSON.stringify(draftProfile);
@@ -2147,7 +2292,9 @@ export function CandidateProfilePage(): JSX.Element {
   };
 
   return (
-    <div className="candidate-profile-page">
+    <div className="candidate-profile-page" data-profile-background={profileBackgroundMode}>
+      <span aria-hidden="true" className="candidate-profile-bg-debug__shimmer" />
+      <ProfileBackgroundToggle mode={profileBackgroundMode} onChange={updateProfileBackgroundMode} />
       <div className="candidate-profile-shell">
         <CandidateProfileHeader
           onAvatarChange={(profilePicture) =>
@@ -2565,9 +2712,8 @@ export function CandidateProfilePage(): JSX.Element {
             ) : null}
 
             {activeTab === "files" ? (
-              <ProfileFilesSection
+              <ProfileResumeFilesSection
                 onChange={(files) => updateImmediate((current) => ({ ...current, files }))}
-                profile={profile}
                 session={session}
               />
             ) : null}

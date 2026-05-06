@@ -1,4 +1,4 @@
-export type ApplicationAuthMode = "signin" | "signup" | "forgot-password";
+export type ApplicationAuthMode = "signin" | "signup" | "forgot-password" | "set-new-password";
 export type AuthProvider = "email" | "google" | "apple";
 export type CandidateEntryMode = "signin" | "signup";
 export type ResumeFileExtension = "pdf" | "doc" | "docx";

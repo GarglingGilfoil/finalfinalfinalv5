@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1128 191" role="img" aria-label="Why settle for business as usual? Bank on better">
+  <defs>
+    <linearGradient id="cardBlue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#052060" />
+      <stop offset="0.54" stop-color="#0b347f" />
+      <stop offset="1" stop-color="#06184a" />
+    </linearGradient>
+    <linearGradient id="redPanel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ff3030" />
+      <stop offset="0.56" stop-color="#ff3734" />
+      <stop offset="1" stop-color="#ff5c45" />
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#071729" flood-opacity="0.22" />
+    </filter>
+    <filter id="glow" x="-30%" y="-80%" width="160%" height="260%">
+      <feGaussianBlur stdDeviation="2.4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <clipPath id="redClip">
+      <rect x="850" y="24" width="252" height="143" rx="0" />
+    </clipPath>
+  </defs>
+
+  <rect width="1128" height="191" fill="#ffffff" />
+  <rect x="0.5" y="0.5" width="1127" height="190" fill="none" stroke="#e7e7e7" />
+
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#00358d">
+    <text x="48" y="87" font-size="46">Why settle for business as usual?</text>
+    <text x="48" y="147" font-size="46">Bank on better</text>
+  </g>
+
+  <g clip-path="url(#redClip)">
+    <rect x="850" y="24" width="252" height="143" fill="url(#redPanel)" />
+    <path d="M858 140 C905 91, 999 85, 1106 43" fill="none" stroke="#3cf0ff" stroke-width="6" stroke-linecap="round" opacity="0.74" filter="url(#glow)" />
+    <path d="M857 143 C910 92, 1004 89, 1114 44" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" opacity="0.68" />
+    <path d="M971 31 L1060 31 L1100 166 L915 166 Z" fill="#efefef" opacity="0.14" />
+  </g>
+
+  <g transform="translate(913 7) rotate(12)" filter="url(#softShadow)">
+    <path d="M0 21 C0 14 5 9 12 9 L145 9 C152 9 157 14 157 21 L157 151 C157 158 152 163 145 163 L12 163 C5 163 0 158 0 151 Z" fill="url(#cardBlue)" />
+    <path d="M0 21 C0 14 5 9 12 9 L145 9 C152 9 157 14 157 21 L157 151 C157 158 152 163 145 163 L12 163 C5 163 0 158 0 151 Z" fill="none" stroke="#193d86" stroke-width="1.6" />
+    <path d="M12 133 H157 V151 C157 158 152 163 145 163 H12 C5 163 0 158 0 151 V139 C34 145 78 143 112 136 C130 132 145 131 157 133 V151 C157 158 152 163 145 163 H12 C5 163 0 158 0 151 Z" fill="#123d96" opacity="0.68" />
+    <text x="69" y="36" fill="#ffffff" opacity="0.86" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="700">Business</text>
+    <text x="69" y="45" fill="#ffffff" opacity="0.86" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="700">debit</text>
+    <rect x="109" y="23" width="19" height="24" rx="3" fill="#d9dfed" opacity="0.88" />
+    <path d="M139 25 C147 31 147 41 139 47" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.72" />
+    <path d="M133 29 C138 33 138 39 133 43" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.72" />
+    <g transform="translate(23 73)">
+      <path d="M0 9 C0 4 4 0 9 0 H29 C34 0 38 4 38 9 C38 14 34 18 29 18 H9 C4 18 0 14 0 9 Z" fill="#ffffff" opacity="0.92" />
+      <path d="M0 9 C0 4 4 0 9 0 H19 V18 H9 C4 18 0 14 0 9 Z" fill="#e62635" opacity="0.96" />
+      <text x="47" y="13" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" letter-spacing="0.7">CAPITEC</text>
+    </g>
+    <text x="25" y="111" fill="#ffffff" opacity="0.8" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="700">BUSINESS NAME (PTY) LTD</text>
+    <text x="25" y="121" fill="#ffffff" opacity="0.8" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="700">YOUR NAME</text>
+    <text x="88" y="151" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="900" font-style="italic">VISA</text>
+  </g>
+</svg>

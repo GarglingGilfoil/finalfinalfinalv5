@@ -576,6 +576,8 @@ function SearchResultsHeadingText({
   title: string;
 }): JSX.Element {
   const trimmedTitle = title.trim();
+  const resultCount: number = MOCK_RESULT_COUNT;
+  const roleLabel = resultCount === 1 ? "role" : "roles";
   const locationLabel = locationState.isRemote
     ? "Remote"
     : locationState.value?.cityName ?? locationState.label.trim();
@@ -589,22 +591,10 @@ function SearchResultsHeadingText({
     </span>
   ) : null;
 
-  if (locationState.isRemote && trimmedTitle) {
-    return (
-      <>
-        {MOCK_RESULT_COUNT} remote {role} roles
-      </>
-    );
-  }
-
-  if (locationState.isRemote) {
-    return <>{MOCK_RESULT_COUNT} remote roles</>;
-  }
-
   if (role && location) {
     return (
       <>
-        {MOCK_RESULT_COUNT} matched roles for {role} in {location}
+        {resultCount} {role} {roleLabel} in {location}
       </>
     );
   }
@@ -612,7 +602,7 @@ function SearchResultsHeadingText({
   if (role) {
     return (
       <>
-        {MOCK_RESULT_COUNT} matched roles for {role}
+        {resultCount} {role} {roleLabel}
       </>
     );
   }
@@ -620,12 +610,16 @@ function SearchResultsHeadingText({
   if (location) {
     return (
       <>
-        {MOCK_RESULT_COUNT} matched roles in {location}
+        {resultCount} {roleLabel} in {location}
       </>
     );
   }
 
-  return <>{MOCK_RESULT_COUNT} matched roles</>;
+  return (
+    <>
+      {resultCount} {roleLabel}
+    </>
+  );
 }
 
 function navigateToJobFromSearchResults(event: ReactMouseEvent<HTMLAnchorElement>, href: string): void {

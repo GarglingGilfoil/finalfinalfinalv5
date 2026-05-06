@@ -42,6 +42,7 @@ interface ResumeUploadSectionProps {
   session: CandidateSession;
   showBackAction?: boolean;
   showCompanyHeading?: boolean;
+  showContinueAction?: boolean;
   showContinueWhenEmpty?: boolean;
   showKicker?: boolean;
   variant?: "application" | "home";
@@ -354,26 +355,34 @@ function OverlayPortal({ children }: { children: JSX.Element }): JSX.Element | n
 
 export function CompanyApplicationHeading({
   job,
+  presentation = "company",
   rightSlot,
   session
 }: {
   job: JobViewData;
+  presentation?: "application" | "company";
   rightSlot?: ReactNode;
   session?: CandidateSession;
 }): JSX.Element {
   const [hasLogoError, setHasLogoError] = useState(false);
   const companyMonogram = useMemo(() => getCompanyMonogram(job.companyName), [job.companyName]);
   const showFallbackLogo = !job.companyLogoUrl || hasLogoError;
+  const isApplicationPresentation = presentation === "application";
 
   return (
     <article
       className={[
         "resume-upload-card__company-heading",
+        isApplicationPresentation ? "resume-upload-card__company-heading--application" : "",
         rightSlot ? "resume-upload-card__company-heading--with-aside" : ""
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label={`${job.companyName}, ${job.title}`}
+      aria-label={
+        isApplicationPresentation
+          ? `Applying for ${job.title} at ${job.companyName}, ${job.location}`
+          : `${job.companyName}, ${job.title}`
+      }
     >
       <div className="resume-upload-card__company-heading-main">
         <div className="resume-upload-card__identity-logo" aria-hidden="true">
@@ -390,8 +399,18 @@ export function CompanyApplicationHeading({
         </div>
 
         <div className="resume-upload-card__company-heading-copy">
-          <h2>{job.companyName}</h2>
-          <p>{job.title}</p>
+          {isApplicationPresentation ? (
+            <>
+              <p className="resume-upload-card__company-heading-label">Applying for</p>
+              <h2>{job.title}</h2>
+              <p>{job.companyName} · {job.location}</p>
+            </>
+          ) : (
+            <>
+              <h2>{job.companyName}</h2>
+              <p>{job.title}</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -496,6 +515,14 @@ function ResumeOptionCard({
       </button>
 
       <div className="resume-upload__file-status">
+        <input
+          aria-label={`Use ${record.fileName} for this application`}
+          checked={isSelected}
+          className="resume-upload__radio"
+          name={radioName}
+          onChange={onSelect}
+          type="radio"
+        />
         <div className="resume-upload__file-actions">
           <button
             aria-label={`Preview file ${record.fileName}`}
@@ -517,15 +544,6 @@ function ResumeOptionCard({
             <DeleteGlyph />
           </button>
         </div>
-
-        <input
-          aria-label={`Use ${record.fileName} for this application`}
-          checked={isSelected}
-          className="resume-upload__radio"
-          name={radioName}
-          onChange={onSelect}
-          type="radio"
-        />
       </div>
     </article>
   );
@@ -702,7 +720,7 @@ export function ResumeUploadSection({
   heading = "Upload your resume",
   isContinueBusy = false,
   job,
-  kicker = "Your resume",
+  kicker = "Application checkpoint",
   lead,
   onContinue,
   onResumeStateChange,
@@ -710,6 +728,7 @@ export function ResumeUploadSection({
   session,
   showBackAction = true,
   showCompanyHeading = true,
+  showContinueAction = true,
   showContinueWhenEmpty = true,
   showKicker = true,
   variant = "application"
@@ -744,7 +763,8 @@ export function ResumeUploadSection({
   const canContinue =
     Boolean(selectedResume) && !isUploading && !isContinueBusy && resumeState.resumes.length > 0;
   const continueButtonLabel = selectedResume || isContinueBusy ? continueLabel : emptyContinueLabel;
-  const shouldShowContinueAction = showContinueWhenEmpty || Boolean(selectedResume) || isContinueBusy;
+  const shouldShowContinueAction =
+    showContinueAction && (showContinueWhenEmpty || Boolean(selectedResume) || isContinueBusy);
   const shouldRenderFooter = Boolean(showBackAction && backHref) || shouldShowContinueAction;
   const sectionClassName = [
     "resume-upload-card",
@@ -1029,13 +1049,19 @@ export function ResumeUploadSection({
         <p className="resume-upload-card__lead">
           {lead ?? (
             <>
-              Attach a recent resume to continue with this application. We’ll use it to move your profile forward for the <span>{job.title}</span> role.
+              Use an existing resume or upload a newer version. Ditto will attach it to your application and help move your profile forward.
             </>
           )}
         </p>
       </header>
 
-      {showCompanyHeading ? <CompanyApplicationHeading job={job} session={session} /> : null}
+      {showCompanyHeading ? (
+        <CompanyApplicationHeading
+          job={job}
+          presentation={variant === "application" ? "application" : "company"}
+          session={session}
+        />
+      ) : null}
 
       <input
         accept={FILE_ACCEPT}
@@ -1082,24 +1108,24 @@ export function ResumeUploadSection({
             </div>
 
             <div className="resume-upload-card__dropzone-copy">
-              <strong>Drop your resume here</strong>
-              <span>Drag and drop a file, or browse from your device.</span>
+              <strong>Upload your resume</strong>
+              <span>Drop a file here, or browse from your device.</span>
             </div>
 
             <button className="button button--ghost resume-upload-card__browse-button" onClick={openFilePicker} type="button">
               Choose file
             </button>
 
-            <p className="resume-upload-card__dropzone-meta">PDF, DOC, DOCX · Max 5MB</p>
+            <p className="resume-upload-card__dropzone-meta">PDF, DOC or DOCX · Max 5MB</p>
           </div>
         ) : (
           <>
             <div className="resume-upload-card__state-copy">
-              <h2>Resume on file</h2>
-              <p>Select the resume you want to use for this application, or swap it out with a newer version.</p>
+              <h2>Use an existing resume</h2>
+              <p>Choose the resume you want to submit for this role.</p>
             </div>
 
-            <div className="resume-upload__file-list" role="list" aria-label="Saved resumes">
+            <div className="resume-upload__file-list" role="list" aria-label="Existing resumes">
               {resumeState.resumes.map((resume) => (
                 <ResumeOptionCard
                   isSelected={resume.id === selectedResume?.id}
@@ -1137,14 +1163,20 @@ export function ResumeUploadSection({
                 void handleDrop(event);
               }}
             >
+              <div className="resume-upload-card__replace-icon" aria-hidden="true">
+                <UploadGlyph />
+              </div>
               <div className="resume-upload-card__replace-copy">
-                <strong>Upload a different resume</strong>
-                <span>Drop a new file here, or browse to replace it.</span>
+                <strong>Upload a newer resume</strong>
+                <span>Drop a file here, or browse from your device.</span>
               </div>
 
-              <button className="button button--ghost resume-upload-card__browse-button" onClick={openFilePicker} type="button">
-                Browse files
-              </button>
+              <div className="resume-upload-card__replace-actions">
+                <button className="button button--ghost resume-upload-card__browse-button" onClick={openFilePicker} type="button">
+                  Browse files
+                </button>
+                <p className="resume-upload-card__dropzone-meta">PDF, DOC or DOCX · Max 5MB</p>
+              </div>
             </div>
           </>
         )}

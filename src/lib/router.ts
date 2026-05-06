@@ -113,7 +113,7 @@ interface NavigateOptions<TPayload = Record<string, unknown>> {
 export function parseAuthMode(search: string): ApplicationAuthMode {
   const mode = new URLSearchParams(search).get("mode");
 
-  if (mode === "signup" || mode === "forgot-password") {
+  if (mode === "signup" || mode === "forgot-password" || mode === "set-new-password") {
     return mode;
   }
 

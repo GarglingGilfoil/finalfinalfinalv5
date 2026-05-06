@@ -17,6 +17,13 @@
   --brand-2: #0f8ecf;
   --brand-3: #085e8b;
   --brand-4: #04354f;
+  --app-surface-base: #fbfdff;
+  --app-surface-blue-soft: rgba(24, 181, 255, 0.135);
+  --app-surface-blue-deep: rgba(8, 94, 139, 0.09);
+  --app-surface-shimmer-opacity: 0.25;
+  --app-surface-drift-duration: 14s;
+  --app-surface-secondary-drift-duration: 20s;
+  --app-surface-shimmer-duration: 8.2s;
   --shadow-soft: 0 12px 30px rgba(8, 26, 46, 0.05);
   --shadow-tight: 0 10px 22px rgba(15, 20, 29, 0.08);
   --radius-sm: 0.78rem;
@@ -181,6 +188,70 @@ select {
     linear-gradient(180deg, #d8dde5 0%, #edf2f7 16%, #f4f7fb 48%, #eef3f8 100%);
   padding-bottom: 3rem;
   padding-top: var(--header-height);
+}
+
+.app-main[data-surface="application"] {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.98), transparent 35rem),
+    linear-gradient(180deg, var(--app-surface-base) 0%, #f8fbfd 48%, #f7fbfe 100%);
+  padding-bottom: 0;
+}
+
+.app-main[data-surface="application"]::before,
+.app-main[data-surface="application"]::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.app-main[data-surface="application"]::before {
+  inset: -11rem -18vw -8rem;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 1% 14%, var(--app-surface-blue-soft), rgba(24, 181, 255, 0.052) 32%, transparent 58%),
+    radial-gradient(circle at 98% 12%, rgba(116, 211, 255, 0.15), rgba(116, 211, 255, 0.048) 27%, transparent 54%),
+    radial-gradient(circle at 9% 78%, rgba(24, 181, 255, 0.082), transparent 50%),
+    radial-gradient(circle at 82% 72%, var(--app-surface-blue-deep), transparent 50%),
+    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.58) 30%, transparent 60%);
+  filter: blur(12px);
+  opacity: 0.92;
+  transform: translate3d(-10vw, -1.5rem, 0) scale(1.02);
+  animation:
+    appSurfaceAmbientDrift var(--app-surface-drift-duration) ease-in-out infinite alternate,
+    appSurfaceAmbientBreath var(--app-surface-secondary-drift-duration) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.app-main[data-surface="application"]::after {
+  top: -28%;
+  bottom: -22%;
+  left: -48%;
+  z-index: 0;
+  width: 46%;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      108deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0) 16%,
+      rgba(255, 255, 255, 0.6) 36%,
+      rgba(24, 181, 255, 0.12) 49%,
+      rgba(255, 255, 255, 0.48) 60%,
+      transparent 84%
+    );
+  filter: blur(16px);
+  opacity: var(--app-surface-shimmer-opacity);
+  transform: translate3d(-34vw, 0, 0) rotate(13deg);
+  animation: appSurfaceShimmerSweep var(--app-surface-shimmer-duration) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.app-main[data-surface="application"] > .application-route-transition {
+  position: relative;
+  z-index: 1;
 }
 
 .application-route-transition {
@@ -559,10 +630,194 @@ select {
   }
 }
 
+@keyframes appSurfaceAmbientDrift {
+  0% {
+    transform: translate3d(-10vw, -1.6rem, 0) scale(1.02);
+  }
+
+  42% {
+    transform: translate3d(4.5vw, 0.8rem, 0) scale(1.065);
+  }
+
+  100% {
+    transform: translate3d(15vw, 2.8rem, 0) scale(1.105);
+  }
+}
+
+@keyframes appSurfaceAmbientBreath {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+
+  48% {
+    opacity: 0.96;
+  }
+}
+
+@keyframes appSurfaceShimmerSweep {
+  0% {
+    opacity: 0;
+    transform: translate3d(-34vw, 0, 0) rotate(13deg);
+  }
+
+  8% {
+    opacity: 0.09;
+    transform: translate3d(-10vw, 0, 0) rotate(13deg);
+  }
+
+  20% {
+    opacity: var(--app-surface-shimmer-opacity);
+    transform: translate3d(30vw, 0, 0) rotate(13deg);
+  }
+
+  62% {
+    opacity: calc(var(--app-surface-shimmer-opacity) * 0.84);
+    transform: translate3d(122vw, 0, 0) rotate(13deg);
+  }
+
+  86%,
+  100% {
+    opacity: 0;
+    transform: translate3d(168vw, 0, 0) rotate(13deg);
+  }
+}
+
 .candidate-profile-page {
+  position: relative;
+  isolation: isolate;
   width: min(calc(100% - 2rem), 61.5rem);
   margin: 0 auto;
   padding: clamp(2rem, 5vw, 4.5rem) 0;
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home"]) {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 50% 64%, rgba(24, 181, 255, 0.18), transparent 34rem),
+    radial-gradient(circle at 15% 10%, rgba(24, 181, 255, 0.14), transparent 28rem),
+    linear-gradient(180deg, #050a12 0%, #07111f 48%, #0a1220 100%);
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home"])::before,
+.app-main:has(.candidate-profile-page[data-profile-background="home"])::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home"])::before {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(24, 181, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 82% 18%, rgba(116, 213, 255, 0.11), transparent 24rem),
+    radial-gradient(circle at 12% 78%, rgba(24, 181, 255, 0.1), transparent 26rem);
+  opacity: 0.82;
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home"])::after {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 5.6rem 5.6rem;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 78%);
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home"]) .application-route-transition {
+  position: relative;
+  z-index: 1;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-shell,
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-guard {
+  position: relative;
+  z-index: 1;
+}
+
+.candidate-profile-bg-debug__shimmer {
+  display: none;
+}
+
+.candidate-profile-page[data-profile-background="home"] .candidate-profile-bg-debug__shimmer {
+  position: fixed;
+  inset: calc(var(--header-height) - 30%) -36% -30%;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 18%,
+      rgba(24, 181, 255, 0.04) 29%,
+      rgba(116, 213, 255, 0.13) 39%,
+      rgba(255, 255, 255, 0.13) 48%,
+      rgba(24, 181, 255, 0.14) 57%,
+      rgba(24, 181, 255, 0.045) 68%,
+      transparent 82%
+    );
+  mix-blend-mode: screen;
+  opacity: 0.52;
+  transform: translate3d(-24%, 0, 0) rotate(-3deg);
+  animation: homeHeroShimmer 12s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.profile-background-toggle {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid;
+  gap: 0.42rem;
+  padding: 0.58rem;
+  border: 1px solid rgba(15, 20, 29, 0.1);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 18px 42px -28px rgba(8, 26, 46, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+}
+
+.profile-background-toggle > span {
+  color: rgba(15, 20, 29, 0.58);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.profile-background-toggle__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 0.72rem;
+  background: rgba(239, 244, 248, 0.86);
+}
+
+.profile-background-toggle__options button {
+  min-width: 4.2rem;
+  min-height: 1.95rem;
+  padding: 0 0.62rem;
+  border: 0;
+  border-radius: 0.58rem;
+  background: transparent;
+  color: rgba(15, 20, 29, 0.58);
+  font-size: 0.76rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.profile-background-toggle__options button.is-active {
+  background: #ffffff;
+  color: #07111f;
+  box-shadow:
+    0 8px 18px -16px rgba(8, 26, 46, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 .candidate-profile-shell {
@@ -2126,6 +2381,23 @@ select {
     padding-top: 1rem;
   }
 
+  .profile-background-toggle {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding: 0.48rem;
+  }
+
+  .profile-background-toggle > span {
+    font-size: 0.58rem;
+  }
+
+  .profile-background-toggle__options button {
+    min-width: 3.65rem;
+    min-height: 1.78rem;
+    padding-inline: 0.48rem;
+    font-size: 0.7rem;
+  }
+
   .candidate-profile-hero__identity {
     align-items: flex-start;
     flex-direction: column;
@@ -2740,8 +3012,18 @@ select {
   margin: 0 auto;
 }
 
+.job-view-page {
+  position: relative;
+  width: 100%;
+  min-height: calc(100dvh - var(--header-height));
+  overflow-x: clip;
+  isolation: isolate;
+  background: transparent;
+}
+
 .job-view__shell {
   position: relative;
+  z-index: 1;
   isolation: isolate;
   overflow: visible;
   padding: 1.25rem 0 2.75rem;
@@ -2806,6 +3088,78 @@ select {
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
+}
+
+.job-view-page .job-view__ambient {
+  position: fixed;
+  inset: var(--header-height) 0 0;
+  z-index: 0;
+}
+
+.job-view-page .job-view__ambient::before,
+.job-view-page .job-view__ambient::after {
+  content: "";
+  position: absolute;
+  inset: -24% -18%;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.job-view-page .job-view__ambient::before {
+  background:
+    radial-gradient(circle at 18% 24%, rgba(37, 170, 245, 0.36), rgba(37, 170, 245, 0.12) 28%, transparent 46%),
+    radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.24) 24%, transparent 42%),
+    radial-gradient(circle at 45% 78%, rgba(94, 202, 255, 0.18), transparent 38%);
+  filter: blur(46px);
+  opacity: 0.74;
+  transform: translate3d(-4vw, -2vh, 0) scale(1);
+  animation: jobViewAmbientCanvasOne 14s ease-in-out infinite alternate;
+}
+
+.job-view-page .job-view__ambient::after {
+  background:
+    radial-gradient(circle at 63% 72%, rgba(11, 103, 172, 0.24), rgba(11, 103, 172, 0.09) 28%, transparent 48%),
+    radial-gradient(circle at 92% 46%, rgba(111, 198, 247, 0.24), rgba(111, 198, 247, 0.08) 24%, transparent 42%),
+    radial-gradient(circle at 16% 82%, rgba(255, 255, 255, 0.58), transparent 34%);
+  filter: blur(58px);
+  opacity: 0.62;
+  transform: translate3d(4vw, 3vh, 0) scale(1.04);
+  animation: jobViewAmbientCanvasTwo 18s ease-in-out infinite alternate;
+}
+
+@media (min-width: 721px) {
+  .job-view-page .job-view__ambient-field {
+    inset: -6rem -12vw -7rem;
+    filter: blur(56px);
+    opacity: 0.2;
+  }
+
+  .job-view-page .job-view__ambient-glow--left {
+    top: -4rem;
+    left: -18rem;
+    width: 58rem;
+    height: 40rem;
+    opacity: 0.2;
+  }
+
+  .job-view-page .job-view__ambient-glow--right {
+    top: -1.5rem;
+    right: -18rem;
+    width: 54rem;
+    height: 36rem;
+    opacity: 0.16;
+  }
+
+  .job-view-page .job-view__ambient-plane {
+    left: 44%;
+    opacity: 0.12;
+  }
+
+  .job-view-page .job-view__ambient-trace {
+    left: 1%;
+    width: 98%;
+  }
 }
 
 .job-view__ambient > * {
@@ -2903,9 +3257,10 @@ select {
 .job-view__ambient-veil {
   inset: 0;
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.24), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-  opacity: 0.18;
+    radial-gradient(circle at 18% 6%, rgba(24, 181, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(196, 238, 255, 0.12), rgba(255, 255, 255, 0.015));
+  opacity: 0.22;
 }
 
 .surface-card {
@@ -4280,38 +4635,52 @@ select {
   min-height: 29.5rem;
 }
 
+.application-auth__layout[data-mode="set-new-password"] {
+  min-height: 30.5rem;
+}
+
 .application-auth__context-panel {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   padding: 2.1rem 2rem 2rem;
-  border-right: 1px solid rgba(15, 20, 29, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(circle at top left, rgba(24, 181, 255, 0.09), transparent 38%),
-    linear-gradient(180deg, rgba(247, 250, 254, 0.98), rgba(239, 245, 249, 0.9));
+    radial-gradient(circle at 50% 64%, rgba(24, 181, 255, 0.18), transparent 34rem),
+    radial-gradient(circle at 15% 10%, rgba(24, 181, 255, 0.14), transparent 28rem),
+    linear-gradient(180deg, #050a12 0%, #07111f 48%, #0a1220 100%);
 }
 
 .application-auth__context-panel::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   background:
-    linear-gradient(180deg, rgba(250, 253, 255, 0.22), rgba(245, 249, 253, 0.14)),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.1), transparent 44%);
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    radial-gradient(circle at 50% 100%, rgba(24, 181, 255, 0.12), transparent 52%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), transparent 44%);
+  background-size:
+    4.8rem 4.8rem,
+    4.8rem 4.8rem,
+    auto,
+    auto;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 78%);
   pointer-events: none;
 }
 
 .application-auth__context-ambient {
   position: absolute;
-  inset: -10% -8%;
-  z-index: 0;
+  inset: -18% -16%;
+  z-index: 1;
   overflow: hidden;
   pointer-events: none;
 }
 
 .application-auth__context-inner {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   min-height: 100%;
   align-items: flex-start;
@@ -4328,31 +4697,31 @@ select {
 }
 
 .application-auth__ambient-glow {
-  inset: -8% auto auto -10%;
-  width: 26rem;
+  inset: auto 50% -22% auto;
+  width: min(42rem, 122%);
   height: 24rem;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 42%, rgba(112, 210, 255, 0.28), transparent 48%),
-    radial-gradient(circle at 68% 36%, rgba(24, 181, 255, 0.18), transparent 42%),
-    radial-gradient(circle at 50% 62%, rgba(8, 94, 139, 0.09), transparent 58%);
-  filter: blur(22px);
-  opacity: 0.72;
+    radial-gradient(circle at 50% 46%, rgba(24, 181, 255, 0.2), transparent 64%),
+    radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.08), transparent 58%);
+  filter: blur(12px);
+  opacity: 0.82;
+  transform: translate3d(50%, 0, 0);
   animation:
-    authAmbientGlowDrift 13.8s ease-in-out infinite alternate,
-    authAmbientGlowPulse 10.6s ease-in-out infinite;
+    authAmbientGlowDrift 21s ease-in-out infinite alternate,
+    authAmbientGlowPulse 13.6s ease-in-out infinite;
 }
 
 .application-auth__ambient-glass-plane {
-  inset: 18% -12% -14% 18%;
+  inset: 16% -18% -16% 16%;
   border-radius: 2rem;
   background:
-    linear-gradient(140deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.08) 34%, rgba(24, 181, 255, 0.12) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.24);
+    linear-gradient(140deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 36%, rgba(24, 181, 255, 0.12) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transform: rotate(-12deg);
   filter: blur(0.2px);
-  opacity: 0.34;
-  animation: authAmbientPlaneDrift 17s ease-in-out infinite alternate;
+  opacity: 0.22;
+  animation: authAmbientPlaneDrift 24s ease-in-out infinite alternate;
 }
 
 .application-auth__ambient-trace {
@@ -4360,11 +4729,11 @@ select {
   width: 130%;
   height: 10rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(8, 94, 139, 0.11), rgba(24, 181, 255, 0.04), transparent 78%);
+  background: linear-gradient(90deg, transparent, rgba(24, 181, 255, 0.16), rgba(255, 255, 255, 0.045), transparent 78%);
   filter: blur(18px);
-  opacity: 0.3;
+  opacity: 0.2;
   transform: rotate(-14deg);
-  animation: authAmbientTraceDrift 16.4s ease-in-out infinite alternate;
+  animation: authAmbientTraceDrift 22.4s ease-in-out infinite alternate;
 }
 
 .application-auth__ambient-trace--two {
@@ -4374,7 +4743,7 @@ select {
   bottom: auto;
   width: 112%;
   height: 7.5rem;
-  opacity: 0.22;
+  opacity: 0.12;
   transform: rotate(18deg);
   animation-duration: 18.8s;
   animation-delay: -3.4s;
@@ -4383,8 +4752,8 @@ select {
 .application-auth__ambient-guide {
   width: 18rem;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), rgba(24, 181, 255, 0.18), transparent);
-  opacity: 0.24;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), rgba(24, 181, 255, 0.2), transparent);
+  opacity: 0.16;
   filter: blur(0.2px);
 }
 
@@ -4392,41 +4761,48 @@ select {
   top: 24%;
   left: -6%;
   transform: rotate(22deg);
-  animation: authAmbientGuideSweep 14.2s ease-in-out infinite alternate;
+  animation: authAmbientGuideSweep 19.2s ease-in-out infinite alternate;
 }
 
 .application-auth__ambient-guide--two {
   right: -10%;
   bottom: 22%;
   transform: rotate(-18deg);
-  animation: authAmbientGuideSweep 18.4s ease-in-out infinite alternate-reverse;
+  animation: authAmbientGuideSweep 24.4s ease-in-out infinite alternate-reverse;
 }
 
 .application-auth__ambient-shimmer {
-  inset: -6% auto auto 38%;
-  width: 11rem;
-  height: 24rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.4), rgba(24, 181, 255, 0.08), rgba(255, 255, 255, 0));
-  opacity: 0.18;
-  filter: blur(26px);
-  transform: rotate(16deg);
+  inset: -44% -38%;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 18%,
+      rgba(24, 181, 255, 0.04) 29%,
+      rgba(116, 213, 255, 0.16) 39%,
+      rgba(255, 255, 255, 0.16) 48%,
+      rgba(24, 181, 255, 0.18) 57%,
+      rgba(24, 181, 255, 0.055) 68%,
+      transparent 82%
+    );
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform: translate3d(-30%, 0, 0) rotate(-4deg);
   animation:
-    authAmbientShimmerTraverse 12.8s ease-in-out infinite,
-    authAmbientGlowPulse 9.4s ease-in-out infinite;
+    authAmbientShimmerTraverse 16s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 .application-auth__ambient-shimmer--soft {
-  inset: auto auto -22% 6%;
-  width: 16rem;
-  height: 16rem;
+  inset: auto auto -20% 2%;
+  width: 18rem;
+  height: 18rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.34), rgba(24, 181, 255, 0.08) 42%, transparent 74%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), rgba(24, 181, 255, 0.12) 42%, transparent 74%);
   opacity: 0.2;
-  filter: blur(28px);
+  filter: blur(30px);
   transform: none;
   animation:
-    authAmbientSoftBloom 15.6s ease-in-out infinite alternate,
-    authAmbientGlowPulse 8.8s ease-in-out infinite;
+    authAmbientSoftBloom 20.6s ease-in-out infinite alternate,
+    authAmbientGlowPulse 12.8s ease-in-out infinite;
 }
 
 .application-auth__form-panel {
@@ -4440,6 +4816,38 @@ select {
   display: block;
   width: min(100%, 31rem);
   margin: 0 auto;
+}
+
+.application-auth__context-panel .application-context__eyebrow {
+  color: #74d5ff;
+}
+
+.application-auth__context-panel .application-context__copy h1 {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.application-auth__context-panel .application-context__supporting-line {
+  color: rgba(206, 224, 237, 0.78);
+}
+
+.application-auth__context-panel .application-context__company {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.application-auth__context-panel .application-context__message {
+  color: rgba(206, 224, 237, 0.78);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.58;
+}
+
+.application-auth__context-panel .application-context__logo-button {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 252, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 18px 34px rgba(0, 0, 0, 0.22);
 }
 
 .application-context {
@@ -4961,11 +5369,16 @@ select {
   display: flex;
   width: 100%;
   flex-direction: column;
-  gap: 1.45rem;
-  padding: 1.65rem;
+  gap: 1.28rem;
+  padding: 1.85rem;
+  border-color: rgba(15, 20, 29, 0.055);
+  border-radius: 1.35rem;
   background:
-    radial-gradient(circle at top, rgba(24, 181, 255, 0.05), transparent 34%),
-    linear-gradient(180deg, rgba(252, 253, 255, 0.98), rgba(247, 250, 253, 0.95));
+    radial-gradient(circle at 12% 0%, rgba(24, 181, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(253, 254, 255, 0.98), rgba(247, 250, 253, 0.96));
+  box-shadow:
+    0 24px 56px -46px rgba(8, 26, 46, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .resume-upload-card::after {
@@ -4988,12 +5401,13 @@ select {
 .resume-upload-card__header h1 {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(1.85rem, 3.3vw, 2.45rem);
+  font-size: clamp(1.85rem, 3.15vw, 2.34rem);
   line-height: 1.02;
   letter-spacing: -0.05em;
 }
 
 .resume-upload-card__lead {
+  max-width: 37rem;
   margin: 0.55rem 0 0;
   color: var(--ink-soft);
   font-size: 0.95rem;
@@ -5024,6 +5438,15 @@ select {
   margin-top: 0.15rem;
   padding: 0.88rem 1rem;
   border-radius: 1.25rem;
+}
+
+.resume-upload-card__company-heading--application {
+  min-height: auto;
+  padding: 0.82rem 0.92rem;
+  border-color: rgba(8, 94, 139, 0.11);
+  background:
+    radial-gradient(circle at top left, rgba(232, 247, 255, 0.68), transparent 48%),
+    linear-gradient(180deg, rgba(250, 253, 255, 0.98), rgba(244, 248, 252, 0.95));
 }
 
 .resume-upload-card__company-heading-main {
@@ -5064,6 +5487,37 @@ select {
   font-size: 0.92rem;
   line-height: 1.35;
   text-wrap: pretty;
+}
+
+.resume-upload-card__company-heading-label {
+  margin: 0;
+  color: rgba(8, 94, 139, 0.72);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.resume-upload-card__company-heading--application .resume-upload-card__identity-logo {
+  width: 3.35rem;
+  height: 3.35rem;
+  border-radius: 0.86rem;
+}
+
+.resume-upload-card__company-heading--application .resume-upload-card__company-heading-copy {
+  gap: 0.2rem;
+}
+
+.resume-upload-card__company-heading--application .resume-upload-card__company-heading-copy h2 {
+  font-size: 1.2rem;
+  letter-spacing: -0.04em;
+}
+
+.resume-upload-card__company-heading--application .resume-upload-card__company-heading-copy p:not(.resume-upload-card__company-heading-label) {
+  color: rgba(15, 20, 29, 0.56);
+  font-size: 0.86rem;
+  font-weight: 650;
 }
 
 .resume-upload-card__company-heading-note {
@@ -5137,7 +5591,7 @@ select {
 }
 
 .resume-upload-card__body--saved {
-  gap: 0.72rem;
+  gap: 0.82rem;
 }
 
 .resume-upload-card__body--guard {
@@ -5181,6 +5635,7 @@ select {
 }
 
 .resume-upload-card__state-copy p {
+  max-width: 34rem;
   margin: 0.28rem 0 0;
   color: var(--ink-soft);
   font-size: 0.86rem;
@@ -5193,7 +5648,7 @@ select {
   align-items: center;
   gap: 0.65rem;
   padding: 1.05rem 1.1rem 0.95rem;
-  border: 1px dashed rgba(8, 94, 139, 0.18);
+  border: 1px dashed rgba(8, 94, 139, 0.2);
   border-radius: 1.18rem;
   background:
     radial-gradient(circle at top, rgba(24, 181, 255, 0.05), transparent 54%),
@@ -5286,7 +5741,16 @@ select {
   min-width: 9rem;
   min-height: 2.45rem;
   padding-inline: 0.9rem;
+  border-color: rgba(15, 20, 29, 0.08);
+  background: rgba(239, 244, 248, 0.88);
   font-size: 0.84rem;
+  box-shadow: 0 8px 16px -18px rgba(15, 20, 29, 0.22);
+}
+
+.resume-upload-card__browse-button:hover {
+  border-color: rgba(15, 20, 29, 0.08);
+  background: rgba(239, 244, 248, 0.88);
+  box-shadow: 0 10px 18px -18px rgba(15, 20, 29, 0.24);
 }
 
 .resume-upload-card__dropzone-meta {
@@ -5299,19 +5763,34 @@ select {
 }
 
 .resume-upload-card__replace-zone {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem;
-  padding: 0.72rem 0.84rem;
-  border: 1px dashed rgba(15, 20, 29, 0.14);
-  border-radius: 0.9rem;
-  background: rgba(247, 249, 252, 0.76);
+  gap: 0.78rem;
+  padding: 0.92rem 1rem;
+  border: 1px dashed rgba(8, 94, 139, 0.2);
+  border-radius: 1.05rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.06), transparent 44%),
+    rgba(247, 250, 253, 0.86);
   transition:
     border-color 160ms ease,
     background 160ms ease,
     transform 160ms ease,
     box-shadow 160ms ease;
+}
+
+.resume-upload-card__replace-icon {
+  display: grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(8, 94, 139, 0.12);
+  border-radius: 0.82rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 247, 253, 0.92));
+  color: #0a789f;
 }
 
 .resume-upload-card__replace-copy {
@@ -5322,14 +5801,20 @@ select {
 
 .resume-upload-card__replace-copy strong {
   color: var(--ink);
-  font-size: 0.84rem;
+  font-size: 0.9rem;
   letter-spacing: -0.02em;
 }
 
 .resume-upload-card__replace-copy span {
   color: var(--ink-soft);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   line-height: 1.36;
+}
+
+.resume-upload-card__replace-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.28rem;
 }
 
 .resume-upload-card__replace-zone .resume-upload-card__browse-button {
@@ -5359,20 +5844,45 @@ select {
   gap: 0;
   overflow: hidden;
   padding: 0;
-  border: 1px solid rgba(15, 20, 29, 0.08);
-  border-radius: 0.88rem;
-  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 20, 29, 0.075);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 254, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
     transform 160ms ease;
 }
 
+.resume-upload__file-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  content: "";
+  background: #16aeea;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
 .resume-upload__file-card:hover,
 .resume-upload__file-card:focus-within,
 .resume-upload__file-card.is-selected {
-  border-color: rgba(8, 94, 139, 0.28);
-  box-shadow: 0 12px 18px -24px rgba(8, 94, 139, 0.2);
+  border-color: rgba(8, 94, 139, 0.22);
+  box-shadow:
+    0 14px 26px -26px rgba(8, 94, 139, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.resume-upload__file-card.is-selected {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(232, 247, 255, 0.74), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 252, 255, 0.96));
+}
+
+.resume-upload__file-card.is-selected::before {
+  opacity: 1;
 }
 
 .resume-upload__file-card:hover,
@@ -5404,16 +5914,17 @@ select {
 
 .resume-upload__file-preview {
   display: flex;
-  width: 4.1rem;
+  width: 3.82rem;
   min-height: 4rem;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.24rem;
   flex: 0 0 auto;
-  border-radius: 0.88rem 0 0 0.88rem;
-  background: rgba(240, 244, 248, 0.94);
-  color: var(--ink);
+  border-right: 1px solid rgba(15, 20, 29, 0.055);
+  border-radius: 1rem 0 0 1rem;
+  background: rgba(244, 247, 250, 0.78);
+  color: rgba(15, 20, 29, 0.68);
 }
 
 .resume-upload__file-preview span {
@@ -5425,8 +5936,8 @@ select {
 
 .resume-upload__file-card.is-selected .resume-upload__file-preview,
 .resume-upload__file-card--uploading .resume-upload__file-preview {
-  background: linear-gradient(180deg, rgba(8, 94, 139, 0.92), rgba(13, 56, 92, 0.94));
-  color: rgba(255, 255, 255, 0.96);
+  background: linear-gradient(180deg, rgba(232, 247, 255, 0.94), rgba(217, 241, 253, 0.9));
+  color: #085e8b;
 }
 
 .resume-upload__file-copy {
@@ -5463,8 +5974,8 @@ select {
 .resume-upload__file-status {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
-  padding: 0.68rem 0.74rem 0.68rem 0.32rem;
+  gap: 0.48rem;
+  padding: 0.68rem 0.8rem 0.68rem 0.32rem;
 }
 
 .resume-upload__file-actions {
@@ -5481,10 +5992,10 @@ select {
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
-  border: 1px solid rgba(15, 20, 29, 0.08);
+  border: 1px solid rgba(15, 20, 29, 0.07);
   border-radius: 0.62rem;
-  background: rgba(248, 250, 252, 0.92);
-  color: rgba(15, 20, 29, 0.74);
+  background: rgba(248, 250, 252, 0.72);
+  color: rgba(15, 20, 29, 0.58);
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -5877,15 +6388,15 @@ select {
 
 .application-success__ambient {
   position: absolute;
-  inset: -4rem -3rem auto;
+  inset: -2.5rem -2rem auto;
   z-index: -1;
-  height: 25rem;
+  height: 18rem;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 34%, rgba(24, 181, 255, 0.12), transparent 34%),
-    radial-gradient(circle at 50% 54%, rgba(8, 94, 139, 0.075), transparent 48%),
+    radial-gradient(circle at 50% 34%, rgba(24, 181, 255, 0.07), transparent 34%),
+    radial-gradient(circle at 50% 54%, rgba(8, 94, 139, 0.04), transparent 48%),
     radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.82), transparent 36%);
-  filter: blur(16px);
+  filter: blur(12px);
   opacity: 0;
   transform: scale(0.96);
   animation: applicationSuccessAmbient 1600ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
@@ -6811,11 +7322,11 @@ select {
   }
 
   45% {
-    opacity: 0.88;
+    opacity: 0.42;
   }
 
   100% {
-    opacity: 0.46;
+    opacity: 0.2;
     transform: scale(1.04);
   }
 }
@@ -7564,6 +8075,57 @@ select {
   }
 }
 
+@keyframes jobViewAmbientBaseDrift {
+  0% {
+    opacity: 0.96;
+    background-position: 20% 0%, 0% 20%, 92% 8%, 52% 78%, 0 0;
+  }
+
+  45% {
+    opacity: 1;
+    background-position: 26% 8%, 6% 28%, 82% 4%, 48% 72%, 0 0;
+  }
+
+  100% {
+    opacity: 0.98;
+    background-position: 32% 16%, 10% 34%, 76% 14%, 58% 86%, 0 0;
+  }
+}
+
+@keyframes jobViewAmbientCanvasOne {
+  0% {
+    opacity: 0.66;
+    transform: translate3d(-4vw, -2vh, 0) scale(1);
+  }
+
+  42% {
+    opacity: 0.8;
+    transform: translate3d(3vw, 2vh, 0) scale(1.055);
+  }
+
+  100% {
+    opacity: 0.72;
+    transform: translate3d(7vw, 5vh, 0) scale(1.09);
+  }
+}
+
+@keyframes jobViewAmbientCanvasTwo {
+  0% {
+    opacity: 0.54;
+    transform: translate3d(5vw, 3vh, 0) scale(1.03);
+  }
+
+  48% {
+    opacity: 0.68;
+    transform: translate3d(-2vw, -1vh, 0) scale(1.08);
+  }
+
+  100% {
+    opacity: 0.6;
+    transform: translate3d(-7vw, -5vh, 0) scale(1.13);
+  }
+}
+
 @keyframes jobViewAmbientFieldWander {
   0% {
     transform: translate3d(-58px, -24px, 0) scale(1.04) rotate(-2deg);
@@ -7675,15 +8237,15 @@ select {
 
 @keyframes authAmbientGlowDrift {
   0% {
-    transform: translate3d(-10px, -6px, 0) scale(0.98);
+    transform: translate3d(50%, 0, 0) scale(0.98);
   }
 
   50% {
-    transform: translate3d(18px, 10px, 0) scale(1.04);
+    transform: translate3d(54%, -8px, 0) scale(1.03);
   }
 
   100% {
-    transform: translate3d(34px, 26px, 0) scale(1.08);
+    transform: translate3d(58%, -14px, 0) scale(1.06);
   }
 }
 
@@ -7746,12 +8308,19 @@ select {
 
 @keyframes authAmbientShimmerTraverse {
   0%,
-  100% {
-    transform: translate3d(-18px, -10px, 0) rotate(16deg);
+  18% {
+    opacity: 0;
+    transform: translate3d(-34%, 0, 0) rotate(-4deg);
   }
 
-  50% {
-    transform: translate3d(48px, 22px, 0) rotate(11deg);
+  46% {
+    opacity: 0.62;
+  }
+
+  78%,
+  100% {
+    opacity: 0;
+    transform: translate3d(34%, 0, 0) rotate(-4deg);
   }
 }
 
@@ -10084,7 +10653,16 @@ select {
 
   .resume-upload-card__replace-zone {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .resume-upload-card__replace-actions {
+    grid-column: 1 / -1;
+    justify-items: stretch;
+  }
+
+  .resume-upload-card__replace-actions .resume-upload-card__dropzone-meta {
+    text-align: left;
   }
 
   .auth-form__grid {
@@ -10901,13 +11479,11 @@ select {
 
   .application-auth__ambient-glass-plane {
     inset: 22% -24% -10% 10%;
-    opacity: 0.42;
+    opacity: 0.22;
   }
 
   .application-auth__ambient-shimmer {
-    width: 9rem;
-    height: 20rem;
-    opacity: 0.2;
+    opacity: 0;
   }
 
   .site-footer__inner {
@@ -11038,11 +11614,11 @@ select {
 
   .application-auth__ambient-trace,
   .application-auth__ambient-guide--two {
-    opacity: 0.22;
+    opacity: 0.16;
   }
 
   .application-auth__ambient-shimmer--soft {
-    opacity: 0.22;
+    opacity: 0.16;
   }
 
   .application-context__logo-layer {
@@ -11254,9 +11830,15 @@ select {
   }
 
   .button,
+  .app-main[data-surface="application"]::before,
+  .app-main[data-surface="application"]::after,
+  .candidate-profile-page[data-profile-background="home"] .candidate-profile-bg-debug__shimmer,
   .skeleton::after,
   .application-step__glow,
   .application-step__beam,
+  .job-view-page::before,
+  .job-view__ambient::before,
+  .job-view__ambient::after,
   .job-view__ambient > *,
   .application-auth__ambient-glow,
   .application-auth__ambient-glass-plane,
@@ -11265,6 +11847,19 @@ select {
   .application-auth__ambient-shimmer {
     animation: none;
     transition: none;
+  }
+
+  .app-main[data-surface="application"]::before {
+    opacity: 0.78;
+    transform: translate3d(0, 0, 0) scale(1.03);
+  }
+
+  .app-main[data-surface="application"]::after {
+    display: none;
+  }
+
+  .candidate-profile-page[data-profile-background="home"] .candidate-profile-bg-debug__shimmer {
+    display: none;
   }
 
   .job-sheet--motion-arrival .job-sheet__header,
@@ -11305,21 +11900,21 @@ select {
   }
 
   .application-auth__ambient-glow {
-    transform: translate3d(10px, 10px, 0) scale(1.02);
-    opacity: 0.74;
+    transform: translate3d(50%, 0, 0) scale(1.02);
+    opacity: 0.72;
   }
 
   .application-auth__ambient-glass-plane {
     transform: translate3d(14px, -8px, 0) rotate(-10deg);
-    opacity: 0.34;
+    opacity: 0.2;
   }
 
   .application-auth__ambient-trace {
-    opacity: 0.24;
+    opacity: 0.2;
   }
 
   .application-auth__ambient-shimmer {
-    opacity: 0.14;
+    opacity: 0;
   }
 }
 

@@ -20,6 +20,7 @@ import { REFERENCE_JOB_ID, resolveRoute, subscribeToRouteChanges } from "../lib/
 export function App(): JSX.Element {
   const [routeVersion, setRouteVersion] = useState(0);
   const route = useMemo(() => resolveRoute(window.location), [routeVersion]);
+  const locationKey = `${window.location.pathname}${window.location.search}`;
 
   useEffect(() => {
     return subscribeToRouteChanges(() => {
@@ -57,15 +58,25 @@ export function App(): JSX.Element {
 
   const chromeJobId =
     "jobId" in route ? route.jobId : route.kind === "job-search" ? REFERENCE_JOB_ID : undefined;
+  const isApplicationSurface =
+    route.kind === "job-search" ||
+    route.kind === "job-view" ||
+    route.kind === "application-auth" ||
+    route.kind === "application-upload" ||
+    route.kind === "application-parsing" ||
+    route.kind === "application-role-questions" ||
+    route.kind === "application-personal-details" ||
+    route.kind === "application-career-history" ||
+    route.kind === "application-confirm";
 
   return (
-    <ApplicationRouteTransitionProvider route={route}>
+    <ApplicationRouteTransitionProvider locationKey={locationKey} route={route}>
       <div className="app-shell">
         <PageChromeHeader
           jobId={chromeJobId}
           showSearch={route.kind !== "home" && route.kind !== "job-search"}
         />
-        <main className="app-main">
+        <main className="app-main" data-surface={isApplicationSurface ? "application" : undefined}>
           <ApplicationRouteTransition route={route}>{content}</ApplicationRouteTransition>
         </main>
         <PageChromeFooter />
