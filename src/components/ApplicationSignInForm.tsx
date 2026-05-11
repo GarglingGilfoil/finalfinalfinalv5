@@ -9,7 +9,8 @@ import {
 } from "./ApplicationAuthPrimitives";
 
 interface ApplicationSignInFormProps {
-  job: JobViewData;
+  allowPasswordReset?: boolean;
+  job?: JobViewData;
   onAuthSuccess: (input: {
     email: string;
     firstName?: string;
@@ -36,6 +37,7 @@ function validateEmail(value: string): boolean {
 }
 
 export function ApplicationSignInForm({
+  allowPasswordReset = true,
   job,
   onAuthSuccess,
   onModeChange
@@ -93,7 +95,9 @@ export function ApplicationSignInForm({
       <div className="auth-card__header">
         <h2>Sign in to continue</h2>
         <p>
-          You’re applying to {job.title} at {job.companyName}.
+          {job
+            ? `You’re applying to ${job.title} at ${job.companyName}.`
+            : "Sign in to manage your profile, applications, and saved job activity."}
         </p>
       </div>
 
@@ -133,17 +137,19 @@ export function ApplicationSignInForm({
           value={password}
         />
 
-        <div className="auth-form__meta-row">
-          <button
-            className="auth-text-button"
-            onClick={() => {
-              onModeChange("forgot-password");
-            }}
-            type="button"
-          >
-            Forgot password?
-          </button>
-        </div>
+        {allowPasswordReset ? (
+          <div className="auth-form__meta-row">
+            <button
+              className="auth-text-button"
+              onClick={() => {
+                onModeChange("forgot-password");
+              }}
+              type="button"
+            >
+              Forgot password?
+            </button>
+          </div>
+        ) : null}
 
         <div className="auth-form__actions auth-form__actions--split auth-form__actions--signin">
           <p className="auth-card__footer auth-card__footer--inline">

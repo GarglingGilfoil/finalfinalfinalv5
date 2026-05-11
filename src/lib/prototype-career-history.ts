@@ -74,7 +74,11 @@ interface ParsedDateLabel {
   year: string;
 }
 
-function getStorageKey(email: string, jobId: string): string {
+function getStorageKey(email: string): string {
+  return `${CAREER_HISTORY_STORAGE_PREFIX}:${encodeURIComponent(email.trim().toLowerCase())}:profile`;
+}
+
+function getLegacyStorageKey(email: string, jobId: string): string {
   return `${CAREER_HISTORY_STORAGE_PREFIX}:${encodeURIComponent(email.trim().toLowerCase())}:${jobId}`;
 }
 
@@ -451,7 +455,9 @@ export function readPrototypeCareerHistoryState(
   session: CandidateSession,
   jobId: string
 ): CandidateCareerHistoryState | null {
-  const raw = window.localStorage.getItem(getStorageKey(session.email, jobId));
+  const storageKey = getStorageKey(session.email);
+  const legacyStorageKey = getLegacyStorageKey(session.email, jobId);
+  const raw = window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey);
 
   if (!raw) {
     return null;
@@ -466,7 +472,8 @@ export function readPrototypeCareerHistoryState(
 
     return parsed;
   } catch {
-    window.localStorage.removeItem(getStorageKey(session.email, jobId));
+    window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(legacyStorageKey);
     return null;
   }
 }
@@ -479,11 +486,12 @@ export function savePrototypeCareerHistoryState(
   const normalizedState = normalizeCareerHistoryState(state, {
     preferCompatibilityEntries: true
   });
+  const storageKey = getStorageKey(session.email);
 
   if (!normalizedState) {
-    window.localStorage.removeItem(getStorageKey(session.email, jobId));
+    window.localStorage.removeItem(storageKey);
     return;
   }
 
-  window.localStorage.setItem(getStorageKey(session.email, jobId), JSON.stringify(normalizedState));
+  window.localStorage.setItem(storageKey, JSON.stringify(normalizedState));
 }

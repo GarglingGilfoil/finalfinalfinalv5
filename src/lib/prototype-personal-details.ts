@@ -17,7 +17,11 @@ interface BuildPrototypePersonalDetailsOptions {
   jobId?: string;
 }
 
-function getStorageKey(email: string, jobId: string): string {
+function getStorageKey(email: string): string {
+  return `${PERSONAL_DETAILS_STORAGE_PREFIX}:${encodeURIComponent(email.trim().toLowerCase())}:profile`;
+}
+
+function getLegacyStorageKey(email: string, jobId: string): string {
   return `${PERSONAL_DETAILS_STORAGE_PREFIX}:${encodeURIComponent(email.trim().toLowerCase())}:${jobId}`;
 }
 
@@ -48,7 +52,9 @@ export function readPrototypePersonalDetailsState(
   session: CandidateSession,
   jobId: string
 ): CandidatePersonalDetailsState | null {
-  const raw = window.localStorage.getItem(getStorageKey(session.email, jobId));
+  const storageKey = getStorageKey(session.email);
+  const legacyStorageKey = getLegacyStorageKey(session.email, jobId);
+  const raw = window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey);
 
   if (!raw) {
     return null;
@@ -69,7 +75,8 @@ export function readPrototypePersonalDetailsState(
 
     return parsed;
   } catch {
-    window.localStorage.removeItem(getStorageKey(session.email, jobId));
+    window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(legacyStorageKey);
     return null;
   }
 }
@@ -79,14 +86,14 @@ export function savePrototypePersonalDetailsState(
   jobId: string,
   state: CandidatePersonalDetailsState
 ): void {
-  const storageKey = getStorageKey(session.email, jobId);
+  const storageKey = getStorageKey(session.email);
 
   try {
-    window.localStorage.setItem(storageKey, JSON.stringify(state));
+    window.localStorage.setItem(storageKey, JSON.stringify({ ...state, jobId }));
   } catch {
     if (state.profilePicture?.dataUrl) {
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify({ ...state, profilePicture: null }));
+        window.localStorage.setItem(storageKey, JSON.stringify({ ...state, jobId, profilePicture: null }));
       } catch {
         // Prototype storage should never block the application flow.
       }

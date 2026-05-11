@@ -21,6 +21,11 @@ export interface JobSearchRoute {
   kind: "job-search";
 }
 
+export interface GlobalAuthRoute {
+  kind: "global-auth";
+  mode: "signin" | "signup";
+}
+
 export interface ApplicationAuthRoute {
   kind: "application-auth";
   jobId: string;
@@ -59,13 +64,18 @@ export interface ApplicationConfirmRoute {
 
 export interface CandidateProfileRoute {
   kind: "candidate-profile";
-  jobId: string;
+  tab: "about" | "experience" | "files" | "settings";
+}
+
+export interface NotFoundRoute {
+  kind: "not-found";
 }
 
 export type AppRoute =
   | HomeRoute
   | JobViewRoute
   | JobSearchRoute
+  | GlobalAuthRoute
   | ApplicationAuthRoute
   | ApplicationUploadRoute
   | ApplicationParsingRoute
@@ -73,7 +83,8 @@ export type AppRoute =
   | ApplicationPersonalDetailsRoute
   | ApplicationCareerHistoryRoute
   | ApplicationConfirmRoute
-  | CandidateProfileRoute;
+  | CandidateProfileRoute
+  | NotFoundRoute;
 
 export const REFERENCE_JOB_ID = "196794136";
 const APP_ROUTE_CHANGE_EVENT = "ditto-jobs:route-change";
@@ -110,6 +121,10 @@ interface NavigateOptions<TPayload = Record<string, unknown>> {
   replace?: boolean;
 }
 
+interface ApplicationAuthPathOptions {
+  next?: string | null;
+}
+
 export function parseAuthMode(search: string): ApplicationAuthMode {
   const mode = new URLSearchParams(search).get("mode");
 
@@ -118,6 +133,41 @@ export function parseAuthMode(search: string): ApplicationAuthMode {
   }
 
   return "signin";
+}
+
+export function parseGlobalAuthMode(search: string): GlobalAuthRoute["mode"] {
+  const mode = new URLSearchParams(search).get("mode");
+  return mode === "signup" ? "signup" : "signin";
+}
+
+export function isCanonicalAuthMode(search: string): boolean {
+  const mode = new URLSearchParams(search).get("mode");
+  return mode === "signin" || mode === "signup" || mode === "forgot-password" || mode === "set-new-password";
+}
+
+export function isCanonicalGlobalAuthMode(search: string): boolean {
+  const mode = new URLSearchParams(search).get("mode");
+  return mode === "signin" || mode === "signup";
+}
+
+export function getSafeAuthNextPath(search: string): string | null {
+  const next = new URLSearchParams(search).get("next")?.trim();
+
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return null;
+  }
+
+  try {
+    const url = new URL(next, window.location.origin);
+
+    if (url.origin !== window.location.origin) {
+      return null;
+    }
+
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
 }
 
 export function buildJobViewPath(jobId: string): string {
@@ -204,11 +254,31 @@ export function buildJobSearchPath(params: JobSearchPathParams = {}): string {
   return `/jobs/search${queryString ? `?${queryString}` : ""}`;
 }
 
+export function buildGlobalAuthPath(
+  mode: GlobalAuthRoute["mode"] = "signin",
+  options: ApplicationAuthPathOptions = {}
+): string {
+  const searchParams = new URLSearchParams({ mode });
+
+  if (options.next) {
+    searchParams.set("next", options.next);
+  }
+
+  return `/auth?${searchParams.toString()}`;
+}
+
 export function buildApplicationAuthPath(
   jobId: string,
-  mode: ApplicationAuthMode = "signin"
+  mode: ApplicationAuthMode = "signin",
+  options: ApplicationAuthPathOptions = {}
 ): string {
-  return `/jobs/${jobId}/apply/auth?mode=${mode}`;
+  const searchParams = new URLSearchParams({ mode });
+
+  if (options.next) {
+    searchParams.set("next", options.next);
+  }
+
+  return `/jobs/${jobId}/apply/auth?${searchParams.toString()}`;
 }
 
 export function buildApplicationUploadPath(jobId: string): string {
@@ -235,23 +305,43 @@ export function buildApplicationConfirmPath(jobId: string): string {
   return `/jobs/${jobId}/apply/confirm`;
 }
 
-export function buildCandidateProfilePath(): string {
-  return "/profile";
+export function buildCandidateProfilePath(tab?: CandidateProfileRoute["tab"] | "overview" | "personal" | "career" | "settings"): string {
+  if (!tab || tab === "about" || tab === "overview" || tab === "personal") {
+    return "/profile";
+  }
+
+  if (tab === "career" || tab === "experience") {
+    return "/profile/career";
+  }
+
+  if (tab === "settings") {
+    return "/profile/settings";
+  }
+
+  return `/profile/${tab}`;
 }
 
 export function navigateTo<TPayload = Record<string, unknown>>(
   path: string,
   options: NavigateOptions<TPayload> = {}
 ): void {
-  if (window.location.pathname === path && !window.location.search) {
-    return;
-  }
-
   const nextState: AppNavigationState<TPayload> | null = options.payload
     ? {
         payload: options.payload
       }
     : null;
+  const nextUrl = new URL(path, window.location.origin);
+  const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (currentPath === nextPath) {
+    if (options.replace) {
+      window.history.replaceState(nextState, "", path);
+    }
+
+    window.dispatchEvent(new Event(APP_ROUTE_CHANGE_EVENT));
+    return;
+  }
 
   if (options.replace) {
     window.history.replaceState(nextState, "", path);
@@ -287,14 +377,42 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     };
   }
 
-  if (trimmedPath === "/profile") {
+  if (trimmedPath === "/auth") {
     return {
-      kind: "candidate-profile",
-      jobId: REFERENCE_JOB_ID
+      kind: "global-auth",
+      mode: parseGlobalAuthMode(location.search)
     };
   }
 
-  if (trimmedPath === "/jobs/search") {
+  if (trimmedPath === "/profile" || trimmedPath === "/profile/overview" || trimmedPath === "/profile/personal") {
+    return {
+      kind: "candidate-profile",
+      tab: "about"
+    };
+  }
+
+  if (trimmedPath === "/profile/career") {
+    return {
+      kind: "candidate-profile",
+      tab: "experience"
+    };
+  }
+
+  if (trimmedPath === "/profile/files") {
+    return {
+      kind: "candidate-profile",
+      tab: "files"
+    };
+  }
+
+  if (trimmedPath === "/profile/settings") {
+    return {
+      kind: "candidate-profile",
+      tab: "settings"
+    };
+  }
+
+  if (trimmedPath === "/jobs" || trimmedPath === "/jobs/search") {
     return {
       kind: "job-search"
     };
@@ -357,8 +475,15 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     };
   }
 
+  // /jobs/:jobId is canonical. /job/:jobId is retained as a legacy alias for existing links.
   const jobMatch = trimmedPath.match(/^\/jobs\/([^/]+)$/) ?? trimmedPath.match(/^\/job\/([^/]+)$/);
   if (jobMatch?.[1]) {
+    if (jobMatch[1] === "apply") {
+      return {
+        kind: "not-found"
+      };
+    }
+
     return {
       kind: "job-view",
       jobId: jobMatch[1],
@@ -368,9 +493,6 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
   }
 
   return {
-    kind: "job-view",
-    jobId: REFERENCE_JOB_ID,
-    layout: FINAL_JOB_VIEW_LAYOUT,
-    motion: FINAL_JOB_VIEW_MOTION
+    kind: "not-found"
   };
 }

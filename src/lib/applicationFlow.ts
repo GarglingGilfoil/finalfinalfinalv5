@@ -26,25 +26,35 @@ export interface ApplicationTransitionPayload {
 
 const APPLICATION_ROUTE_ORDER: Record<AppRoute["kind"], number> = {
   home: 0,
-  "job-search": 1,
-  "job-view": 2,
-  "application-auth": 3,
-  "application-upload": 4,
-  "application-parsing": 5,
-  "application-personal-details": 6,
-  "application-role-questions": 7,
-  "application-career-history": 8,
-  "application-confirm": 9,
-  "candidate-profile": 10
+  "global-auth": 1,
+  "job-search": 2,
+  "job-view": 3,
+  "application-auth": 4,
+  "application-upload": 5,
+  "application-parsing": 6,
+  "application-personal-details": 7,
+  "application-role-questions": 8,
+  "application-career-history": 9,
+  "application-confirm": 10,
+  "candidate-profile": 11,
+  "not-found": 12
 };
 
 export function getApplicationRouteKey(route: AppRoute): string {
-  if (route.kind === "home" || route.kind === "job-search") {
+  if (route.kind === "home" || route.kind === "job-search" || route.kind === "not-found") {
     return route.kind;
+  }
+
+  if (route.kind === "global-auth") {
+    return `${route.kind}:${route.mode}`;
   }
 
   if (route.kind === "application-auth") {
     return `${route.kind}:${route.jobId}:${route.mode}`;
+  }
+
+  if (route.kind === "candidate-profile") {
+    return `${route.kind}:${route.tab}`;
   }
 
   return `${route.kind}:${route.jobId}`;

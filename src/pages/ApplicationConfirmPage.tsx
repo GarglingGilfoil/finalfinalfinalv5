@@ -1,31 +1,26 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getJobView, readJobView } from "../api/jobs";
+import { ApplicationUnavailableState } from "../components/ApplicationGuardStates";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
+import {
+  getSelectedResumeForApplication,
+  markPrototypeApplicationEnrichmentComplete,
+  readPrototypeApplicationRecord
+} from "../lib/prototype-application";
 import type {
-  CandidateCareerHistoryState,
   CandidatePersonalDetailsState,
   CandidateProfilePictureValue,
   CandidateResumeState,
-  CandidateSession,
-  PrototypeCareerEntry,
-  PrototypeEducationEntry
+  CandidateSession
 } from "../contracts/application";
 import type { JobViewData } from "../contracts/job-view";
 import { readPrototypeSession } from "../lib/prototype-auth";
-import { readPrototypeCareerHistoryState } from "../lib/prototype-career-history";
 import { readPrototypePersonalDetailsState } from "../lib/prototype-personal-details";
 import { readPrototypeResumeState } from "../lib/prototype-resume";
 import {
-  isPrototypeRoleQuestionsComplete,
-  readPrototypeRoleQuestionsState
-} from "../lib/prototype-role-questions";
-import {
   buildApplicationAuthPath,
-  buildApplicationCareerHistoryPath,
-  buildApplicationPersonalDetailsPath,
-  buildApplicationRoleQuestionsPath,
   buildApplicationUploadPath,
   buildCandidateProfilePath,
   buildJobViewPath,
@@ -246,47 +241,6 @@ const APPLY_STATE_BURST_PARTICLES: SuccessParticle[] = [
   buildPillBurstParticle(72, -30, -88, 366, 540, "rgba(255, 255, 255, 0.86)", "dot", 3)
 ];
 
-function hasCompleteCareerEntry(entry: PrototypeCareerEntry): boolean {
-  if (!entry.jobTitle.trim() || !entry.company.trim() || !entry.startMonth || !entry.startYear) {
-    return false;
-  }
-
-  if (entry.isCurrent) {
-    return true;
-  }
-
-  if (!entry.endMonth || !entry.endYear) {
-    return false;
-  }
-
-  return Number(`${entry.startYear}${entry.startMonth}`) <= Number(`${entry.endYear}${entry.endMonth}`);
-}
-
-function hasCompleteEducationEntry(entry: PrototypeEducationEntry): boolean {
-  return Boolean(
-    entry.institution.trim() &&
-      entry.qualification &&
-      entry.startYear &&
-      entry.endYear &&
-      Number(entry.startYear) <= Number(entry.endYear)
-  );
-}
-
-function isReviewReady(state: CandidateCareerHistoryState | null, sourceResumeId: string): boolean {
-  if (!state) {
-    return false;
-  }
-
-  if (state.sourceResumeId !== sourceResumeId) {
-    return false;
-  }
-
-  return (
-    state.careerEntries.every(hasCompleteCareerEntry) &&
-    state.educationEntries.every(hasCompleteEducationEntry)
-  );
-}
-
 function LoadingState(): JSX.Element {
   return (
     <div className="job-view__shell">
@@ -298,17 +252,7 @@ function LoadingState(): JSX.Element {
 }
 
 function MissingState(): JSX.Element {
-  return (
-    <div className="job-view__shell">
-      <section className="job-view__stack">
-        <div className="surface-card surface-card--section">
-          <p className="section-kicker">Unavailable</p>
-          <h1>Application step not available</h1>
-          <p className="muted-copy">We couldn’t resolve this role. Return to the job page and try again.</p>
-        </div>
-      </section>
-    </div>
-  );
+  return <ApplicationUnavailableState />;
 }
 
 function GuardState({ job }: { job: JobViewData }): JSX.Element {
@@ -324,7 +268,9 @@ function GuardState({ job }: { job: JobViewData }): JSX.Element {
           <div className="application-step__guard-actions">
             <TransitionLink
               className="button button--job-primary"
-              href={buildApplicationAuthPath(job.id, "signin")}
+              href={buildApplicationAuthPath(job.id, "signin", {
+                next: `${window.location.pathname}${window.location.search}`
+              })}
               source="guard-recovery"
             >
               Go to application sign in
@@ -377,28 +323,6 @@ function StepGuardState({
         </section>
       </ApplicationStepShell>
     </div>
-  );
-}
-
-function RoleQuestionsRedirectState({ job }: { job: JobViewData }): JSX.Element {
-  const { transitionTo } = useApplicationRouteTransition();
-
-  useEffect(() => {
-    transitionTo(buildApplicationRoleQuestionsPath(job.id), {
-      direction: "back",
-      replace: true,
-      source: "guard-recovery"
-    });
-  }, [job.id, transitionTo]);
-
-  return (
-    <StepGuardState
-      actionHref={buildApplicationRoleQuestionsPath(job.id)}
-      actionLabel="Go to role questions"
-      copy="Answer these role questions before continuing with your application."
-      kicker="Application details"
-      title="Role questions needed"
-    />
   );
 }
 
@@ -568,29 +492,20 @@ function ReadyState({
 }): JSX.Element {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const navigationState = useMemo(() => readNavigationState<ConfirmRoutePayload>(), []);
+  const applicationRecord = useMemo(
+    () => (session ? readPrototypeApplicationRecord(session, job.id) : null),
+    [job.id, session]
+  );
   const selectedResume = useMemo(
-    () =>
-      resumeState?.resumes.find((resume) => resume.id === resumeState.selectedResumeId) ?? null,
-    [resumeState]
+    () => getSelectedResumeForApplication(resumeState, applicationRecord),
+    [applicationRecord, resumeState]
   );
   const personalDetailsState = useMemo<CandidatePersonalDetailsState | null>(
     () => (session ? readPrototypePersonalDetailsState(session, job.id) : null),
     [job.id, session]
   );
-  const roleQuestionsState = useMemo(
-    () => (session ? readPrototypeRoleQuestionsState(session, job.id) : null),
-    [job.id, session]
-  );
-  const reviewState = useMemo<CandidateCareerHistoryState | null>(
-    () => (session ? readPrototypeCareerHistoryState(session, job.id) : null),
-    [job.id, session]
-  );
   const successReady = Boolean(
-    session &&
-      selectedResume &&
-      personalDetailsState?.status === "complete" &&
-      isPrototypeRoleQuestionsComplete(roleQuestionsState, selectedResume.id) &&
-      isReviewReady(reviewState, selectedResume.id)
+    session && applicationRecord && selectedResume
   );
   const firstName = session?.firstName?.trim() ?? "";
   const headline = firstName ? `Congratulations, ${firstName}.` : "Congratulations.";
@@ -616,11 +531,19 @@ function ReadyState({
     };
   }, [successReady]);
 
+  useEffect(() => {
+    if (!session || !applicationRecord || !selectedResume) {
+      return;
+    }
+
+    markPrototypeApplicationEnrichmentComplete(session, job.id);
+  }, [applicationRecord, job.id, selectedResume, session]);
+
   if (!session) {
     return <GuardState job={job} />;
   }
 
-  if (!selectedResume) {
+  if (!applicationRecord || !selectedResume) {
     return (
       <StepGuardState
         actionHref={buildApplicationUploadPath(job.id)}
@@ -628,34 +551,6 @@ function ReadyState({
         copy="Choose a resume before you complete this application profile."
         kicker="Resume required"
         title="Resume required"
-      />
-    );
-  }
-
-  if (personalDetailsState?.status !== "complete") {
-    return (
-      <StepGuardState
-        actionHref={buildApplicationPersonalDetailsPath(job.id)}
-        actionLabel="Go to personal details"
-        copy="Add your location details before you complete this application profile."
-        kicker="Personal details required"
-        title="Personal details needed"
-      />
-    );
-  }
-
-  if (!isPrototypeRoleQuestionsComplete(roleQuestionsState, selectedResume.id)) {
-    return <RoleQuestionsRedirectState job={job} />;
-  }
-
-  if (!isReviewReady(reviewState, selectedResume.id)) {
-    return (
-      <StepGuardState
-        actionHref={buildApplicationCareerHistoryPath(job.id)}
-        actionLabel="Review career and education"
-        copy="Review the career and education details before this application profile is marked ready."
-        kicker="Review required"
-        title="Career and education needed"
       />
     );
   }
@@ -714,10 +609,10 @@ function ReadyState({
 
           </section>
 
-          <ProfileCompletionCard
-            candidateName={firstName || candidateName}
-            jobId={job.id}
-            profilePicture={personalDetailsState.profilePicture}
+            <ProfileCompletionCard
+              candidateName={firstName || candidateName}
+              jobId={job.id}
+              profilePicture={personalDetailsState?.profilePicture ?? null}
           />
         </section>
       </ApplicationStepShell>

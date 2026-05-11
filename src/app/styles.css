@@ -2,6 +2,7 @@
 
 :root {
   --header-height: 4.85rem;
+  --app-shell-canvas: #eef3f8;
   --page-width: 73rem;
   --job-sheet-width: 54rem;
   --bg: #d6d8de;
@@ -127,7 +128,7 @@
 }
 
 html {
-  background: #05070b;
+  background: var(--app-shell-canvas);
   height: 100%;
   overscroll-behavior-y: none;
   overflow: hidden;
@@ -138,7 +139,7 @@ body {
   margin: 0;
   height: 100%;
   min-width: 20rem;
-  background: #05070b;
+  background: var(--app-shell-canvas);
   color: var(--ink);
   font-family: "DM Sans", sans-serif;
   overscroll-behavior-y: none;
@@ -149,7 +150,7 @@ body {
 }
 
 #root {
-  background: #05070b;
+  background: var(--app-shell-canvas);
   height: 100%;
 }
 
@@ -174,11 +175,20 @@ select {
   display: flex;
   height: 100vh;
   height: 100dvh;
-  background: #05070b;
+  background: var(--app-shell-canvas);
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: none;
+}
+
+#root:has(.home-page),
+.app-shell:has(.home-page),
+#root:has(.candidate-profile-page[data-profile-background="home"]),
+.app-shell:has(.candidate-profile-page[data-profile-background="home"]),
+#root:has(.candidate-profile-page[data-profile-background="home-2"]),
+.app-shell:has(.candidate-profile-page[data-profile-background="home-2"]) {
+  background: #05070b;
 }
 
 .app-main {
@@ -193,7 +203,7 @@ select {
 .app-main[data-surface="application"] {
   position: relative;
   isolation: isolate;
-  overflow-x: clip;
+  overflow: clip;
   background:
     radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.98), transparent 35rem),
     linear-gradient(180deg, var(--app-surface-base) 0%, #f8fbfd 48%, #f7fbfe 100%);
@@ -267,6 +277,10 @@ select {
   z-index: 1;
   transform-origin: 50% 28%;
   will-change: opacity, transform, filter;
+}
+
+.application-route-transition__content:has(.search-results-page) {
+  will-change: auto;
 }
 
 .application-route-transition__wash {
@@ -788,60 +802,98 @@ select {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.54), rgba(116, 213, 255, 0.16), transparent 68%);
 }
 
-.profile-background-toggle {
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"]) {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at -10% 10%, rgba(24, 181, 255, 0.22), transparent 32rem),
+    radial-gradient(circle at 106% 16%, rgba(116, 213, 255, 0.12), transparent 27rem),
+    radial-gradient(circle at 6% 84%, rgba(24, 181, 255, 0.14), transparent 31rem),
+    radial-gradient(circle at 96% 72%, rgba(8, 94, 139, 0.12), transparent 28rem),
+    linear-gradient(180deg, #050a12 0%, #07111f 48%, #0a1220 100%);
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"])::before,
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"])::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"])::before {
+  background:
+    radial-gradient(circle at 4% 0%, rgba(116, 213, 255, 0.17), transparent 26rem),
+    radial-gradient(circle at 92% 12%, rgba(24, 181, 255, 0.09), transparent 22rem),
+    radial-gradient(circle at 14% 88%, rgba(24, 181, 255, 0.12), transparent 28rem);
+  opacity: 0.74;
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"])::after {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 5.6rem 5.6rem;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 78%);
+}
+
+.app-main:has(.candidate-profile-page[data-profile-background="home-2"]) .application-route-transition {
+  position: relative;
+  z-index: 1;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-shell,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-guard {
+  position: relative;
+  z-index: 1;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-bg-debug__shimmer {
   position: fixed;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 30;
-  display: grid;
-  gap: 0.42rem;
-  padding: 0.58rem;
-  border: 1px solid rgba(15, 20, 29, 0.1);
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.88);
+  inset: calc(var(--header-height) - 30%) -36% -30%;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 18%,
+      rgba(24, 181, 255, 0.04) 29%,
+      rgba(116, 213, 255, 0.09) 39%,
+      rgba(255, 255, 255, 0.065) 48%,
+      rgba(24, 181, 255, 0.1) 57%,
+      rgba(24, 181, 255, 0.04) 68%,
+      transparent 82%
+    );
+  mix-blend-mode: screen;
+  opacity: 0.38;
+  transform: translate3d(-24%, 0, 0) rotate(-3deg);
+  animation: homeHeroShimmer 12s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] {
+  --profile-home2-surface: rgba(227, 238, 246, 0.9);
+  --profile-home2-surface-strong: rgba(239, 247, 251, 0.94);
+  --profile-home2-surface-muted: rgba(213, 227, 237, 0.84);
+  --profile-home2-line: rgba(143, 213, 255, 0.2);
+  --profile-home2-divider: rgba(46, 81, 104, 0.14);
+  --profile-home2-shadow: 0 28px 72px -48px rgba(0, 0, 0, 0.68);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .surface-card {
+  border-color: var(--profile-home2-line);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.045), transparent 42%),
+    linear-gradient(180deg, var(--profile-home2-surface-strong), var(--profile-home2-surface));
   box-shadow:
-    0 18px 42px -28px rgba(8, 26, 46, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(16px);
+    var(--profile-home2-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.58);
 }
 
-.profile-background-toggle > span {
-  color: rgba(15, 20, 29, 0.58);
-  font-size: 0.66rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.profile-background-toggle__options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.25rem;
-  padding: 0.2rem;
-  border-radius: 0.72rem;
-  background: rgba(239, 244, 248, 0.86);
-}
-
-.profile-background-toggle__options button {
-  min-width: 4.2rem;
-  min-height: 1.95rem;
-  padding: 0 0.62rem;
-  border: 0;
-  border-radius: 0.58rem;
-  background: transparent;
-  color: rgba(15, 20, 29, 0.58);
-  font-size: 0.76rem;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.profile-background-toggle__options button.is-active {
-  background: #ffffff;
-  color: #07111f;
-  box-shadow:
-    0 8px 18px -16px rgba(8, 26, 46, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+.candidate-profile-page[data-profile-background="home-2"] .surface-card::before {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.5), rgba(116, 213, 255, 0.14), transparent 68%);
 }
 
 .candidate-profile-shell {
@@ -974,7 +1026,6 @@ select {
     0 0 0 1px rgba(143, 213, 255, 0.12);
 }
 
-.candidate-profile-page[data-profile-background="home"] .candidate-profile-hero__action,
 .candidate-profile-page[data-profile-background="home"] .candidate-profile-cover__edit,
 .candidate-profile-page[data-profile-background="home"] .candidate-profile-avatar__edit {
   border-color: rgba(143, 213, 255, 0.2);
@@ -982,6 +1033,46 @@ select {
   box-shadow:
     0 14px 32px -24px rgba(0, 0, 0, 0.48),
     inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-hero {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.07), transparent 42%),
+    linear-gradient(180deg, rgba(224, 237, 245, 0.92), rgba(207, 223, 234, 0.88));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-cover {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(116, 213, 255, 0.2), transparent 32%),
+    radial-gradient(circle at 92% 10%, rgba(24, 181, 255, 0.1), transparent 34%),
+    linear-gradient(135deg, rgba(201, 222, 234, 0.96), rgba(174, 202, 219, 0.78) 50%, rgba(217, 231, 240, 0.9));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-cover::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), transparent 32%, rgba(255, 255, 255, 0.08) 68%, transparent),
+    radial-gradient(circle at 48% 118%, rgba(8, 94, 139, 0.13), transparent 44%);
+  opacity: 0.74;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-avatar__button {
+  border-color: rgba(248, 252, 255, 0.94);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.84), transparent 36%),
+    linear-gradient(145deg, rgba(24, 181, 255, 0.18), rgba(226, 239, 247, 0.92));
+  box-shadow:
+    0 20px 44px -24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(143, 213, 255, 0.12);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-cover__edit,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-avatar__edit {
+  border-color: rgba(143, 213, 255, 0.2);
+  background: rgba(251, 253, 255, 0.76);
+  box-shadow:
+    0 14px 32px -24px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.66);
 }
 
 .candidate-profile-hero__identity {
@@ -1075,10 +1166,40 @@ select {
   letter-spacing: -0.062em;
 }
 
-.candidate-profile-hero__copy p {
-  margin: 0.5rem 0 0;
+.candidate-profile-hero__meta {
+  display: grid;
+  gap: 0.34rem;
+  margin-top: 0.62rem;
+}
+
+.candidate-profile-hero__meta span,
+.candidate-profile-hero__member-since {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
   color: var(--ink-soft);
-  font-size: clamp(0.98rem, 1.8vw, 1.08rem);
+  font-size: clamp(0.91rem, 1.45vw, 1rem);
+  font-weight: 680;
+  line-height: 1.3;
+}
+
+.candidate-profile-hero__meta svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: rgba(8, 94, 139, 0.72);
+  stroke-width: 2.2;
+}
+
+.candidate-profile-hero__member-since {
+  align-self: flex-start;
+  justify-content: flex-end;
+  margin: 0.1rem 0 0;
+  color: rgba(15, 20, 29, 0.54);
+  font-size: 0.78rem;
+  font-weight: 760;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .candidate-profile-chip,
@@ -1095,21 +1216,13 @@ select {
   font-weight: 700;
 }
 
-.candidate-profile-hero__action {
-  flex: 0 0 auto;
-  min-height: 2.5rem;
-  border-color: rgba(15, 20, 29, 0.07);
-  background: rgba(255, 255, 255, 0.72);
-  color: rgba(15, 20, 29, 0.72);
-  box-shadow: none;
-}
-
 .candidate-profile-tabs {
   display: flex;
   gap: 0.28rem;
   overflow-x: auto;
   padding: 0.35rem;
   border-radius: 1.35rem;
+  scroll-margin-top: calc(var(--header-height) + 0.5rem);
   scrollbar-width: none;
 }
 
@@ -1177,6 +1290,31 @@ select {
     0 10px 24px -20px rgba(8, 26, 46, 0.42);
 }
 
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-tabs {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(218, 232, 242, 0.88), rgba(203, 219, 231, 0.84));
+  box-shadow:
+    0 20px 52px -38px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-tabs button {
+  color: rgba(46, 63, 82, 0.74);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-tabs button:hover,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-tabs button.is-active {
+  background: rgba(248, 252, 255, 0.72);
+  color: #0f141d;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-tabs button.is-active {
+  box-shadow:
+    inset 0 0 0 1px rgba(24, 181, 255, 0.2),
+    0 10px 24px -20px rgba(8, 26, 46, 0.42);
+}
+
 .candidate-profile-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
@@ -1192,6 +1330,11 @@ select {
   min-height: 28rem;
   width: 100%;
   max-width: none;
+}
+
+.candidate-profile-about-tab {
+  display: grid;
+  gap: 1.15rem;
 }
 
 .candidate-profile-about-grid {
@@ -1210,6 +1353,60 @@ select {
 
 .candidate-profile-about-grid__details {
   align-content: start;
+}
+
+.candidate-profile-home2-about {
+  display: grid;
+  gap: 1rem;
+}
+
+.candidate-profile-home2-panel {
+  display: grid;
+  gap: 1.05rem;
+  padding: clamp(1.05rem, 2.6vw, 1.45rem);
+  border-radius: 1.45rem;
+}
+
+.candidate-profile-home2-panel__header {
+  display: grid;
+  gap: 0.2rem;
+  padding-bottom: 0.95rem;
+  border-bottom: 1px solid var(--profile-home2-divider);
+}
+
+.candidate-profile-home2-panel__header h2,
+.candidate-profile-home2-panel__header p {
+  margin: 0;
+}
+
+.candidate-profile-home2-panel__header h2 {
+  color: var(--ink);
+  font-size: clamp(1.25rem, 2.2vw, 1.55rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.candidate-profile-home2-panel__header p {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid {
+  grid-template-columns: minmax(0, 1.34fr) minmax(17rem, 0.86fr);
+  gap: clamp(1rem, 2.4vw, 1.4rem);
+  align-items: stretch;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid__story,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid__details {
+  gap: 0;
+  align-content: start;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid__details {
+  padding-left: clamp(1rem, 2.4vw, 1.4rem);
+  border-left: 1px solid var(--profile-home2-divider);
 }
 
 .candidate-profile-section--career-review {
@@ -1335,6 +1532,204 @@ select {
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.candidate-profile-section--settings {
+  padding: clamp(1.2rem, 3vw, 1.6rem);
+}
+
+.candidate-profile-settings {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.candidate-profile-settings__header {
+  max-width: 36rem;
+}
+
+.candidate-profile-settings__header h2 {
+  margin: 0.2rem 0 0;
+  color: var(--ink);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  line-height: 1.08;
+}
+
+.candidate-profile-settings__header p {
+  margin: 0.55rem 0 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.candidate-profile-settings-card {
+  display: grid;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(15, 20, 29, 0.065);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.candidate-profile-settings-card--action-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: flex-start;
+  padding-block: 0.9rem;
+}
+
+.candidate-profile-settings-card--disclosure {
+  padding: 0;
+  overflow: hidden;
+}
+
+.candidate-profile-settings-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.candidate-profile-settings-card p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.candidate-profile-settings-card--danger {
+  border-color: rgba(153, 47, 49, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 249, 249, 0.76), rgba(255, 244, 244, 0.56));
+}
+
+.candidate-profile-settings-disclosure {
+  display: flex;
+  width: 100%;
+  gap: 0.9rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.95rem 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.candidate-profile-settings-disclosure strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.candidate-profile-settings-disclosure small {
+  display: block;
+  margin-top: 0.28rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.candidate-profile-settings-disclosure svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  color: rgba(15, 20, 29, 0.46);
+  transition: transform 160ms ease;
+}
+
+.candidate-profile-settings-disclosure[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.candidate-profile-settings-disclosure--danger strong {
+  color: rgba(118, 37, 40, 0.94);
+}
+
+.candidate-profile-settings-disclosure--danger svg {
+  color: rgba(118, 37, 40, 0.68);
+}
+
+.candidate-profile-settings-card--disclosure .candidate-profile-settings-form,
+.candidate-profile-settings-disclosure-panel {
+  padding: 0 1rem 1rem;
+}
+
+.candidate-profile-settings-disclosure-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.candidate-profile-settings-danger-copy p {
+  margin: 0;
+}
+
+.candidate-profile-settings-danger-copy p + p {
+  margin-top: 0.35rem;
+}
+
+.candidate-profile-settings-readonly-value {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(15, 20, 29, 0.08);
+  border-radius: 0.9rem;
+  background: rgba(247, 250, 253, 0.72);
+  color: rgba(15, 20, 29, 0.82);
+  cursor: not-allowed;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.candidate-profile-settings-form {
+  display: grid;
+  gap: 0.85rem;
+  width: min(100%, 36rem);
+}
+
+.candidate-profile-settings-form > .auth-field {
+  max-width: calc((36rem - 0.85rem) / 2);
+}
+
+.candidate-profile-settings-form__password-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.candidate-profile-settings-form__footer,
+.candidate-profile-settings-actions,
+.candidate-profile-settings-confirmation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.candidate-profile-settings-success {
+  margin: 0 auto 0 0;
+  color: rgba(8, 94, 139, 0.95);
+  font-size: 0.86rem;
+  font-weight: 780;
+}
+
+.candidate-profile-settings-warning {
+  color: rgba(118, 37, 40, 0.92) !important;
+  font-weight: 780;
+}
+
+.candidate-profile-settings-confirmation {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.92rem;
+  border: 1px solid rgba(153, 47, 49, 0.14);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.candidate-profile-settings-confirmation p {
+  margin: 0;
+  color: rgba(15, 20, 29, 0.8);
+  font-weight: 690;
+}
+
 .candidate-profile-page[data-profile-background="home"] .candidate-profile-section,
 .candidate-profile-page[data-profile-background="home"] .candidate-profile-completion-prompt,
 .candidate-profile-page[data-profile-background="home"] .resume-upload-card {
@@ -1356,6 +1751,64 @@ select {
   background:
     radial-gradient(circle at 100% 0%, rgba(24, 181, 255, 0.08), transparent 36%),
     linear-gradient(180deg, rgba(234, 244, 250, 0.9), rgba(218, 232, 242, 0.86));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-completion-prompt,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review,
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload-card {
+  border-color: rgba(143, 213, 255, 0.18);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(24, 181, 255, 0.06), transparent 36%),
+    linear-gradient(180deg, rgba(232, 242, 249, 0.9), rgba(213, 228, 239, 0.86));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section {
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--profile-home2-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding:
+    clamp(0.95rem, 2vw, 1.15rem)
+    0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section:first-child {
+  padding-top: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section::before {
+  display: none;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section[data-editing="true"] {
+  margin: 0 -0.72rem;
+  padding-inline: 0.72rem;
+  border: 1px solid rgba(24, 181, 255, 0.16);
+  border-radius: 1rem;
+  background: rgba(248, 252, 255, 0.46);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-section__header {
+  margin-bottom: 0.72rem;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--story .candidate-profile-section__edit,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--panel .candidate-profile-section__edit {
+  color: rgba(46, 63, 82, 0.62);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--story .candidate-profile-section__edit:hover,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--panel .candidate-profile-section__edit:hover {
+  border-color: rgba(24, 181, 255, 0.14);
+  background: rgba(248, 252, 255, 0.48);
 }
 
 .candidate-profile-section--story .candidate-profile-section__header,
@@ -1408,6 +1861,65 @@ select {
 
 .candidate-profile-field {
   margin: 0;
+}
+
+.candidate-profile-date-field {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.candidate-profile-date-field__control {
+  display: grid;
+  grid-template-columns: minmax(4.6rem, 1fr) auto minmax(3.2rem, 0.72fr) auto minmax(3.2rem, 0.72fr);
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 2.82rem;
+  padding: 0.32rem 0.58rem;
+  border: 1px solid rgba(15, 20, 29, 0.085);
+  border-radius: 0.92rem;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), transparent 58%),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.candidate-profile-date-field__control:focus-within {
+  border-color: rgba(8, 94, 139, 0.22);
+  box-shadow: 0 0 0 4px rgba(24, 181, 255, 0.08);
+}
+
+.candidate-profile-date-field__control--error {
+  border-color: rgba(195, 78, 78, 0.28);
+  background: rgba(255, 249, 249, 0.92);
+}
+
+.candidate-profile-date-field__control input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1;
+  outline: none;
+  text-align: center;
+}
+
+.candidate-profile-date-field__control input::placeholder {
+  color: rgba(15, 20, 29, 0.38);
+  font-weight: 700;
+}
+
+.candidate-profile-date-field__control span {
+  color: rgba(15, 20, 29, 0.32);
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .candidate-profile-rich-preview {
@@ -1470,6 +1982,10 @@ select {
   background: linear-gradient(180deg, rgba(226, 237, 246, 0), rgba(226, 237, 246, 0.94) 58%);
 }
 
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-about-preview__footer {
+  background: linear-gradient(180deg, rgba(226, 237, 246, 0), rgba(226, 237, 246, 0.9) 58%);
+}
+
 .candidate-profile-about-preview--expanded .candidate-profile-about-preview__footer {
   position: static;
   padding-top: 0.35rem;
@@ -1488,6 +2004,12 @@ select {
 .candidate-profile-page[data-profile-background="home"] .candidate-profile-save-status {
   border-color: rgba(143, 213, 255, 0.22);
   background: rgba(248, 252, 255, 0.62);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-chip,
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-save-status {
+  border-color: rgba(143, 213, 255, 0.2);
+  background: rgba(248, 252, 255, 0.58);
 }
 
 .candidate-profile-chip-list {
@@ -1535,6 +2057,12 @@ select {
     linear-gradient(180deg, rgba(248, 252, 255, 0.7), rgba(217, 239, 250, 0.62));
 }
 
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-chip-list--profile .candidate-profile-chip {
+  border-color: rgba(24, 181, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.66), rgba(210, 234, 247, 0.58));
+}
+
 .candidate-profile-chip--overflow {
   appearance: none;
   cursor: pointer;
@@ -1549,6 +2077,86 @@ select {
   border-color: rgba(24, 181, 255, 0.2);
   background:
     linear-gradient(180deg, rgba(248, 252, 255, 0.68), rgba(211, 235, 248, 0.62));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-chip--overflow {
+  border-color: rgba(24, 181, 255, 0.2);
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.64), rgba(205, 231, 245, 0.58));
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review {
+  padding: clamp(1.05rem, 2.6vw, 1.45rem);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review .career-history-card__body--embedded {
+  gap: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review .career-review-section {
+  padding: clamp(1rem, 2.2vw, 1.25rem) 0;
+  border-top-color: var(--profile-home2-divider);
+  border-radius: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review .career-review-section:first-child {
+  padding-top: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .candidate-profile-section--career-review .career-review-section:last-child {
+  padding-bottom: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .career-review-list {
+  gap: 0.5rem;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .career-review-item {
+  border-color: rgba(143, 213, 255, 0.16);
+  background: rgba(248, 252, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload-card {
+  padding: clamp(1.25rem, 2.8vw, 1.75rem);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-list {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(143, 213, 255, 0.16);
+  border-radius: 1rem;
+  background: rgba(248, 252, 255, 0.42);
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-card {
+  border: 0;
+  border-bottom: 1px solid var(--profile-home2-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-card:last-child {
+  border-bottom: 0;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-card:hover,
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-card:focus-within,
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload__file-card.is-selected {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.08), transparent 42%),
+    rgba(248, 252, 255, 0.58);
+  box-shadow: none;
+  transform: none;
+}
+
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload-card__replace-zone,
+.candidate-profile-page[data-profile-background="home-2"] .resume-upload-card__dropzone {
+  border-color: rgba(143, 213, 255, 0.2);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(24, 181, 255, 0.05), transparent 42%),
+    rgba(248, 252, 255, 0.46);
 }
 
 .candidate-profile-chip--overflow:hover,
@@ -1640,6 +2248,31 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.65rem;
   align-items: end;
+}
+
+.candidate-profile-skill-picker {
+  min-width: 0;
+}
+
+.candidate-profile-skill-picker__results {
+  padding-right: 0.15rem;
+}
+
+.candidate-profile-search-picker__results button:hover,
+.candidate-profile-search-picker__results button.is-active {
+  background: rgba(232, 247, 255, 0.92);
+  color: rgba(8, 94, 139, 0.96);
+}
+
+.candidate-profile-search-picker__empty {
+  margin: 0.45rem 0 0;
+  padding: 0.66rem 0.75rem;
+  border: 1px solid rgba(15, 20, 29, 0.06);
+  border-radius: 0.75rem;
+  background: rgba(247, 250, 253, 0.72);
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .candidate-profile-language-row,
@@ -1853,6 +2486,65 @@ select {
   padding: 0.62rem 0.75rem;
   text-align: left;
   cursor: pointer;
+}
+
+.candidate-profile-nationality-field__input {
+  padding-right: 6.45rem;
+}
+
+.candidate-profile-nationality-field__trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border-style: solid;
+  text-align: left;
+  cursor: pointer;
+}
+
+.candidate-profile-nationality-field__trigger[data-placeholder="true"] {
+  color: rgba(15, 20, 29, 0.42);
+}
+
+.candidate-profile-nationality-field__selected {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-profile-nationality-field__clear {
+  position: absolute;
+  top: 50%;
+  right: 3.42rem;
+  z-index: 2;
+  display: inline-flex;
+  width: 2.08rem;
+  height: 2.08rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 20, 29, 0.08);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.78);
+  color: rgba(15, 20, 29, 0.48);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.candidate-profile-nationality-field__clear:hover,
+.candidate-profile-nationality-field__clear:focus-visible {
+  border-color: rgba(8, 94, 139, 0.18);
+  color: rgba(8, 94, 139, 0.82);
+}
+
+.candidate-profile-nationality-field__clear:focus-visible {
+  outline: 2px solid rgba(8, 94, 139, 0.16);
+  outline-offset: 2px;
+}
+
+.candidate-profile-nationality-field__clear svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  stroke-width: 2.35;
 }
 
 .candidate-profile-entry-editor {
@@ -2122,6 +2814,88 @@ select {
   height: 1.05rem;
 }
 
+.candidate-profile-dialog__panel--centered {
+  justify-items: center;
+  padding: 1.35rem;
+  text-align: center;
+}
+
+.candidate-profile-dialog__danger-mark--centered {
+  width: 3rem;
+  height: 3rem;
+}
+
+.candidate-profile-dialog__danger-mark--centered svg {
+  width: 1.32rem;
+  height: 1.32rem;
+}
+
+.candidate-profile-dialog__danger-mark--progress {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 250, 251, 0.96);
+}
+
+.candidate-profile-dialog__danger-mark--success {
+  border-color: rgba(22, 163, 74, 0.18);
+  background:
+    radial-gradient(circle at 28% 22%, rgba(134, 239, 172, 0.3), transparent 42%),
+    rgba(240, 253, 244, 0.96);
+  color: #15803d;
+}
+
+.candidate-profile-dialog__progress {
+  --close-account-progress: 0%;
+  position: relative;
+  display: grid;
+  width: 3.75rem;
+  height: 3.75rem;
+  place-items: center;
+}
+
+.candidate-profile-dialog__progress-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    conic-gradient(#be123c var(--close-account-progress), rgba(190, 18, 60, 0.11) 0),
+    rgba(255, 241, 243, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(190, 18, 60, 0.08);
+}
+
+.candidate-profile-dialog__progress-ring::after {
+  position: absolute;
+  inset: 0.28rem;
+  border-radius: inherit;
+  background: var(--surface-strong);
+  content: "";
+}
+
+.candidate-profile-dialog__progress-label {
+  color: rgba(118, 37, 40, 0.78);
+  font-size: 0.78rem;
+  font-weight: 820;
+  letter-spacing: 0.06em;
+}
+
+.candidate-profile-dialog__center-copy {
+  display: grid;
+  gap: 0.42rem;
+  max-width: 24rem;
+}
+
+.candidate-profile-dialog__center-copy h3 {
+  color: var(--ink);
+  font-size: 1.14rem;
+  line-height: 1.14;
+  letter-spacing: -0.035em;
+}
+
+.candidate-profile-dialog__center-copy p {
+  color: rgba(15, 20, 29, 0.62);
+  line-height: 1.55;
+}
+
 .candidate-profile-dialog__file-summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2164,6 +2938,10 @@ select {
   display: flex;
   justify-content: flex-end;
   gap: 0.62rem;
+}
+
+.candidate-profile-dialog__actions--centered {
+  justify-content: center;
 }
 
 .candidate-profile-dialog__danger-button {
@@ -2250,11 +3028,6 @@ select {
 .candidate-profile-segment__buttons button.is-selected {
   background: var(--ink);
   color: #fff;
-}
-
-.candidate-profile-remuneration-editor {
-  display: grid;
-  gap: 0.82rem;
 }
 
 .candidate-profile-money {
@@ -2516,23 +3289,6 @@ select {
     padding-top: 1rem;
   }
 
-  .profile-background-toggle {
-    right: max(0.75rem, env(safe-area-inset-right));
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    padding: 0.48rem;
-  }
-
-  .profile-background-toggle > span {
-    font-size: 0.58rem;
-  }
-
-  .profile-background-toggle__options button {
-    min-width: 3.65rem;
-    min-height: 1.78rem;
-    padding-inline: 0.48rem;
-    font-size: 0.7rem;
-  }
-
   .candidate-profile-hero__identity {
     align-items: flex-start;
     flex-direction: column;
@@ -2554,8 +3310,11 @@ select {
     padding-top: 0;
   }
 
-  .candidate-profile-hero__action {
-    min-height: 2.35rem;
+  .candidate-profile-hero__member-since {
+    justify-content: flex-start;
+    margin-top: 0;
+    text-align: left;
+    white-space: normal;
   }
 
   .candidate-profile-hero__copy h1 {
@@ -2585,6 +3344,25 @@ select {
 
   .candidate-profile-about-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel {
+    padding: 1rem;
+  }
+
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid__details {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--profile-home2-divider);
+  }
+
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-home2-panel .candidate-profile-about-grid__details .candidate-profile-section:first-child {
+    padding-top: clamp(0.95rem, 2vw, 1.15rem);
   }
 
   .candidate-profile-section--story,
@@ -4755,6 +5533,76 @@ select {
   width: 100%;
 }
 
+.global-auth-page {
+  width: min(100%, 72rem);
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 3vw, 1.5rem);
+}
+
+.global-auth-page__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
+  min-height: 34rem;
+  overflow: hidden;
+}
+
+.global-auth-page__context {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+  padding: clamp(2rem, 5vw, 3.4rem);
+  overflow: hidden;
+  color: #f7fbff;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(24, 181, 255, 0.22), transparent 24rem),
+    radial-gradient(circle at 92% 82%, rgba(31, 141, 212, 0.16), transparent 22rem),
+    linear-gradient(180deg, #050a12 0%, #07111f 48%, #0a1220 100%);
+}
+
+.global-auth-page__context::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(132deg, transparent 18%, rgba(255, 255, 255, 0.13) 47%, transparent 72%);
+  background-size: 4.8rem 4.8rem, 4.8rem 4.8rem, 220% 100%;
+  opacity: 0.58;
+}
+
+.global-auth-page__context > * {
+  position: relative;
+  z-index: 1;
+}
+
+.global-auth-page__context h1 {
+  max-width: 28rem;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2.1rem, 4vw, 3.4rem);
+  line-height: 0.98;
+}
+
+.global-auth-page__context p:not(.section-kicker) {
+  max-width: 28rem;
+  margin: 1rem 0 0;
+  color: rgba(221, 238, 249, 0.78);
+  font-size: 1rem;
+  line-height: 1.62;
+}
+
+.global-auth-page__form {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .application-auth__layout {
   display: grid;
   grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
@@ -5318,6 +6166,12 @@ select {
   cursor: not-allowed;
 }
 
+.auth-field:has(.auth-field__input:disabled),
+.auth-field:has(.auth-field__input:disabled) .auth-field__label,
+.auth-field:has(.auth-field__input:disabled) .candidate-profile-field__helper {
+  cursor: not-allowed;
+}
+
 .auth-field__input--error {
   border-color: rgba(195, 78, 78, 0.28);
   background: rgba(255, 249, 249, 0.92);
@@ -5353,10 +6207,12 @@ select {
 }
 
 .auth-form__legal {
+  align-self: flex-end;
   margin: -0.1rem 0 0;
   color: var(--ink-soft);
   font-size: 0.84rem;
   line-height: 1.55;
+  text-align: right;
 }
 
 .auth-form__legal a {
@@ -9522,7 +10378,7 @@ select {
   width: min(21.5rem, calc(100vw - 2rem));
   max-height: min(32rem, calc(100vh - var(--header-height) - 2rem));
   gap: 0.78rem;
-  overflow: auto;
+  overflow: hidden;
   padding: 0.9rem;
   border: 1px solid rgba(15, 20, 29, 0.08);
   border-radius: 1.12rem;
@@ -9572,7 +10428,15 @@ select {
 
 .search-results-popover__options {
   display: grid;
+  min-height: 0;
   gap: 0.34rem;
+}
+
+.search-results-popover__options--scrollable {
+  max-height: clamp(13rem, 46vh, 20rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.16rem;
 }
 
 .search-results-option {
@@ -10489,14 +11353,16 @@ select {
   }
 }
 
-.job-search-placeholder {
+.job-search-placeholder,
+.not-found-page {
   display: grid;
   min-height: calc(100vh - var(--header-height) - 12rem);
   place-items: center;
   padding: clamp(3rem, 8vw, 6rem) 0;
 }
 
-.job-search-placeholder__card {
+.job-search-placeholder__card,
+.not-found-card {
   display: grid;
   width: min(100%, 42rem);
   justify-items: start;
@@ -10504,7 +11370,8 @@ select {
   padding: clamp(1.4rem, 4vw, 2.25rem);
 }
 
-.job-search-placeholder__icon {
+.job-search-placeholder__icon,
+.not-found-card__icon {
   display: inline-grid;
   width: 3rem;
   height: 3rem;
@@ -10514,12 +11381,14 @@ select {
   color: var(--brand-3);
 }
 
-.job-search-placeholder__icon svg {
+.job-search-placeholder__icon svg,
+.not-found-card__icon svg {
   width: 1.25rem;
   height: 1.25rem;
 }
 
-.job-search-placeholder h1 {
+.job-search-placeholder h1,
+.not-found-card h1 {
   margin: 0;
   color: var(--ink);
   font-size: clamp(2rem, 4vw, 3rem);
@@ -10527,7 +11396,8 @@ select {
   letter-spacing: -0.06em;
 }
 
-.job-search-placeholder p {
+.job-search-placeholder p,
+.not-found-card p {
   max-width: 34rem;
   margin: 0;
   color: rgba(15, 20, 29, 0.62);
@@ -10560,7 +11430,9 @@ select {
   font-weight: 780;
 }
 
-.job-search-placeholder__actions {
+.job-search-placeholder__actions,
+.not-found-card__actions,
+.job-view__recovery-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.58rem;
@@ -11296,6 +12168,9 @@ select {
   }
 
   .site-footer {
+    display: block;
+    flex-basis: auto;
+    height: auto;
     margin-top: 0;
     padding: 1.65rem 0;
   }
@@ -11968,6 +12843,7 @@ select {
   .app-main[data-surface="application"]::before,
   .app-main[data-surface="application"]::after,
   .candidate-profile-page[data-profile-background="home"] .candidate-profile-bg-debug__shimmer,
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-bg-debug__shimmer,
   .skeleton::after,
   .application-step__glow,
   .application-step__beam,
@@ -11994,6 +12870,10 @@ select {
   }
 
   .candidate-profile-page[data-profile-background="home"] .candidate-profile-bg-debug__shimmer {
+    display: none;
+  }
+
+  .candidate-profile-page[data-profile-background="home-2"] .candidate-profile-bg-debug__shimmer {
     display: none;
   }
 
@@ -12762,6 +13642,7 @@ select {
 }
 
 /* Shared dropdown scrollers: quiet by default, visible when the user engages. */
+.search-results-popover__options--scrollable,
 .career-review-select-field__list,
 .career-review-industry-field__list,
 .application-location-field__results {
@@ -12771,6 +13652,7 @@ select {
   scrollbar-width: thin;
 }
 
+.search-results-popover__options--scrollable::-webkit-scrollbar,
 .career-review-select-field__list::-webkit-scrollbar,
 .career-review-industry-field__list::-webkit-scrollbar,
 .application-location-field__results::-webkit-scrollbar {
@@ -12778,6 +13660,7 @@ select {
   height: 0.46rem;
 }
 
+.search-results-popover__options--scrollable::-webkit-scrollbar-track,
 .career-review-select-field__list::-webkit-scrollbar-track,
 .career-review-industry-field__list::-webkit-scrollbar-track,
 .application-location-field__results::-webkit-scrollbar-track {
@@ -12785,6 +13668,7 @@ select {
   background: transparent;
 }
 
+.search-results-popover__options--scrollable::-webkit-scrollbar-thumb,
 .career-review-select-field__list::-webkit-scrollbar-thumb,
 .career-review-industry-field__list::-webkit-scrollbar-thumb,
 .application-location-field__results::-webkit-scrollbar-thumb {
@@ -12795,6 +13679,8 @@ select {
   background-clip: content-box;
 }
 
+.search-results-popover__options--scrollable:hover::-webkit-scrollbar-thumb,
+.search-results-popover__options--scrollable:focus-within::-webkit-scrollbar-thumb,
 .career-review-select-field__list:hover::-webkit-scrollbar-thumb,
 .career-review-select-field__list:focus-within::-webkit-scrollbar-thumb,
 .career-review-industry-field__list:hover::-webkit-scrollbar-thumb,
@@ -12804,6 +13690,7 @@ select {
   background-color: rgba(15, 20, 29, 0.34);
 }
 
+.search-results-popover__options--scrollable::-webkit-scrollbar-thumb:active,
 .career-review-select-field__list::-webkit-scrollbar-thumb:active,
 .career-review-industry-field__list::-webkit-scrollbar-thumb:active,
 .application-location-field__results::-webkit-scrollbar-thumb:active {
@@ -12811,12 +13698,14 @@ select {
 }
 
 @media (forced-colors: active) {
+  .search-results-popover__options--scrollable,
   .career-review-select-field__list,
   .career-review-industry-field__list,
   .application-location-field__results {
     scrollbar-color: CanvasText Canvas;
   }
 
+  .search-results-popover__options--scrollable::-webkit-scrollbar-thumb,
   .career-review-select-field__list::-webkit-scrollbar-thumb,
   .career-review-industry-field__list::-webkit-scrollbar-thumb,
   .application-location-field__results::-webkit-scrollbar-thumb {
@@ -15379,6 +16268,9 @@ select {
     rgba(243, 248, 252, 0.96);
   background-position: 0 0, 0 0.5rem, 0.5rem -0.5rem, -0.5rem 0;
   background-size: 1rem 1rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .personal-profile-picture-editor__stage[data-crop-shape="wide"] {
@@ -15390,13 +16282,28 @@ select {
   border-radius: 1.2rem;
 }
 
+.personal-profile-picture-editor__image-frame,
 .personal-profile-picture-editor__image {
   width: 100%;
   height: 100%;
+  transform-origin: center;
+}
+
+.personal-profile-picture-editor__image-frame {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}
+
+.personal-profile-picture-editor__image-frame[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.personal-profile-picture-editor__image {
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
-  transform-origin: center;
+  background-size: contain;
+  pointer-events: none;
 }
 
 .personal-profile-picture-editor__crop-frame {
@@ -15811,6 +16718,15 @@ select {
   font-size: 0.84rem;
   font-weight: 690;
   letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.application-location-field__result-copy span {
+  overflow: hidden;
+  color: rgba(15, 20, 29, 0.48);
+  font-size: 0.74rem;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -10,12 +10,18 @@ import {
 } from "react";
 import { Check, ChevronDown, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { getJobView, readJobView } from "../api/jobs";
+import { ApplicationUnavailableState } from "../components/ApplicationGuardStates";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ApplicationLocationField } from "../components/ApplicationLocationField";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
+import {
+  getSelectedResumeForApplication,
+  markPrototypeApplicationEnrichmentComplete,
+  readPrototypeApplicationRecord
+} from "../lib/prototype-application";
 import type {
   CandidateCareerHistoryState,
   CandidateLocationValue,
@@ -517,16 +523,7 @@ function LoadingState(): JSX.Element {
 }
 
 function MissingState(): JSX.Element {
-  return (
-    <div className="job-view__shell">
-      <ApplicationStepShell>
-        <section className="application-step__panel application-step__guard surface-card surface-card--section">
-          <h1>Application step not available</h1>
-          <p className="muted-copy">We couldn’t resolve the role for this review step.</p>
-        </section>
-      </ApplicationStepShell>
-    </div>
-  );
+  return <ApplicationUnavailableState />;
 }
 
 function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
@@ -539,7 +536,9 @@ function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
           <div className="application-step__guard-actions">
             <TransitionLink
               className="button button--job-primary"
-              href={buildApplicationAuthPath(job.id, "signin")}
+              href={buildApplicationAuthPath(job.id, "signin", {
+                next: `${window.location.pathname}${window.location.search}`
+              })}
               source="guard-recovery"
             >
               Go to application sign in
@@ -2671,12 +2670,13 @@ function ReadyState({
   session: CandidateSession | null;
 }): JSX.Element {
   const { transitionTo } = useApplicationRouteTransition();
+  const applicationRecord = useMemo(
+    () => (session ? readPrototypeApplicationRecord(session, job.id) : null),
+    [job.id, session]
+  );
   const selectedResume = useMemo(
-    () =>
-      resumeState?.resumes.find((resume) => resume.id === resumeState.selectedResumeId) ??
-      resumeState?.resumes[0] ??
-      null,
-    [resumeState]
+    () => getSelectedResumeForApplication(resumeState, applicationRecord),
+    [applicationRecord, resumeState]
   );
   const personalDetailsState = useMemo<CandidatePersonalDetailsState | null>(
     () => (session ? readPrototypePersonalDetailsState(session, job.id) : null),
@@ -2701,6 +2701,29 @@ function ReadyState({
   const [isEmptyStatePreview, setIsEmptyStatePreview] = useState(false);
   const careerAddRef = useRef<HTMLButtonElement | null>(null);
   const educationAddRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    if (applicationRecord?.enrichmentCompletedAt) {
+      transitionTo(buildApplicationConfirmPath(job.id), {
+        direction: "forward",
+        replace: true,
+        source: "guard-recovery"
+      });
+      return;
+    }
+
+    if (!applicationRecord) {
+      transitionTo(buildApplicationUploadPath(job.id), {
+        direction: "back",
+        replace: true,
+        source: "guard-recovery"
+      });
+    }
+  }, [applicationRecord, job.id, session, transitionTo]);
 
   useEffect(() => {
     if (!session || !selectedResume) {
@@ -2730,7 +2753,7 @@ function ReadyState({
     return <SessionGuard job={job} />;
   }
 
-  if (!selectedResume) {
+  if (!applicationRecord || !selectedResume) {
     return <MissingResumeState job={job} />;
   }
 
@@ -3204,6 +3227,7 @@ function ReadyState({
       return;
     }
 
+    markPrototypeApplicationEnrichmentComplete(session, job.id);
     transitionTo(buildApplicationConfirmPath(job.id), {
       direction: "forward",
       source: "career-review-complete",

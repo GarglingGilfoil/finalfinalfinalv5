@@ -1,8 +1,10 @@
 import {
+  useEffect,
   useId,
   useRef,
   useState,
   type ChangeEvent,
+  type PointerEvent,
   type ReactNode,
   type RefObject
 } from "react";
@@ -20,6 +22,23 @@ interface PendingImageEdit {
   fileName: string;
   fileSize: number;
   mimeType: string;
+}
+
+interface CropOffset {
+  x: number;
+  y: number;
+}
+
+interface ImageNaturalSize {
+  height: number;
+  width: number;
+}
+
+interface CropDragState {
+  pointerId: number;
+  startOffset: CropOffset;
+  startX: number;
+  startY: number;
 }
 
 interface ImageEditorRenderProps {
@@ -66,6 +85,7 @@ async function cropImage(
   imageSrc: string,
   rotation: number,
   zoom: number,
+  offset: CropOffset,
   mimeType: string,
   outputWidth: number,
   outputHeight: number
@@ -85,18 +105,63 @@ async function cropImage(
   const normalizedRotation = ((rotation % 180) + 180) % 180;
   const rotatedWidth = normalizedRotation === 90 ? image.naturalHeight : image.naturalWidth;
   const rotatedHeight = normalizedRotation === 90 ? image.naturalWidth : image.naturalHeight;
-  const coverScale = Math.max(outputWidth / rotatedWidth, outputHeight / rotatedHeight);
-  const scale = coverScale * zoom;
+  const containScale = Math.min(outputWidth / rotatedWidth, outputHeight / rotatedHeight);
+  const scale = containScale * zoom;
 
-  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+  canvasContext.fillStyle = "#f3f8fc";
+  canvasContext.fillRect(0, 0, canvas.width, canvas.height);
   canvasContext.save();
-  canvasContext.translate(outputWidth / 2, outputHeight / 2);
+  canvasContext.translate(outputWidth / 2 + offset.x, outputHeight / 2 + offset.y);
   canvasContext.rotate(angle);
   canvasContext.scale(scale, scale);
   canvasContext.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
   canvasContext.restore();
 
   return canvas.toDataURL(mimeType === "image/png" ? "image/png" : "image/jpeg", 0.92);
+}
+
+function getRotatedImageSize(imageSize: ImageNaturalSize, rotation: number): ImageNaturalSize {
+  const normalizedRotation = ((rotation % 180) + 180) % 180;
+
+  if (normalizedRotation === 90) {
+    return {
+      height: imageSize.width,
+      width: imageSize.height
+    };
+  }
+
+  return imageSize;
+}
+
+function clampCropOffset({
+  imageSize,
+  offset,
+  outputHeight,
+  outputWidth,
+  rotation,
+  zoom
+}: {
+  imageSize: ImageNaturalSize | null;
+  offset: CropOffset;
+  outputHeight: number;
+  outputWidth: number;
+  rotation: number;
+  zoom: number;
+}): CropOffset {
+  if (!imageSize) {
+    return offset;
+  }
+
+  const rotatedSize = getRotatedImageSize(imageSize, rotation);
+  const containScale = Math.min(outputWidth / rotatedSize.width, outputHeight / rotatedSize.height);
+  const scale = containScale * zoom;
+  const maxX = Math.max(0, (rotatedSize.width * scale - outputWidth) / 2);
+  const maxY = Math.max(0, (rotatedSize.height * scale - outputHeight) / 2);
+
+  return {
+    x: Math.min(maxX, Math.max(-maxX, offset.x)),
+    y: Math.min(maxY, Math.max(-maxY, offset.y))
+  };
 }
 
 export function ProfileImageUploader({
@@ -112,11 +177,16 @@ export function ProfileImageUploader({
   const helpId = `${inputId}-help`;
   const feedbackId = `${inputId}-feedback`;
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const cropDragRef = useRef<CropDragState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingImageEdit | null>(null);
+  const [imageNaturalSize, setImageNaturalSize] = useState<ImageNaturalSize | null>(null);
   const [cropZoom, setCropZoom] = useState(1);
   const [cropRotation, setCropRotation] = useState(0);
+  const [cropOffset, setCropOffset] = useState<CropOffset>({ x: 0, y: 0 });
+  const [isDraggingCrop, setIsDraggingCrop] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const describedBy = [helpId, error ? feedbackId : null].filter(Boolean).join(" ");
 
@@ -152,6 +222,7 @@ export function ProfileImageUploader({
         return;
       }
 
+      setCropOffset({ x: 0, y: 0 });
       setCropZoom(1);
       setCropRotation(0);
       setPendingEdit({
@@ -171,8 +242,12 @@ export function ProfileImageUploader({
 
   const cancelCrop = (): void => {
     setPendingEdit(null);
+    setImageNaturalSize(null);
+    setCropOffset({ x: 0, y: 0 });
     setCropZoom(1);
     setCropRotation(0);
+    setIsDraggingCrop(false);
+    cropDragRef.current = null;
     setIsApplyingCrop(false);
     setError(null);
     window.setTimeout(() => {
@@ -193,6 +268,14 @@ export function ProfileImageUploader({
         pendingEdit.dataUrl,
         cropRotation,
         cropZoom,
+        clampCropOffset({
+          imageSize: imageNaturalSize,
+          offset: cropOffset,
+          outputHeight,
+          outputWidth,
+          rotation: cropRotation,
+          zoom: cropZoom
+        }),
         pendingEdit.mimeType,
         outputWidth,
         outputHeight
@@ -206,8 +289,12 @@ export function ProfileImageUploader({
         updatedAt: new Date().toISOString()
       });
       setPendingEdit(null);
+      setImageNaturalSize(null);
+      setCropOffset({ x: 0, y: 0 });
       setCropZoom(1);
       setCropRotation(0);
+      setIsDraggingCrop(false);
+      cropDragRef.current = null;
     } catch {
       setError("We couldn’t crop that image. Try a different file.");
     } finally {
@@ -217,6 +304,105 @@ export function ProfileImageUploader({
       }, 0);
     }
   };
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!pendingEdit) {
+      setImageNaturalSize(null);
+      return undefined;
+    }
+
+    void loadImageElement(pendingEdit.dataUrl)
+      .then((image) => {
+        if (!isActive) {
+          return;
+        }
+
+        setImageNaturalSize({
+          height: image.naturalHeight,
+          width: image.naturalWidth
+        });
+      })
+      .catch(() => {
+        if (isActive) {
+          setImageNaturalSize(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [pendingEdit]);
+
+  useEffect(() => {
+    setCropOffset((current) => {
+      const next = clampCropOffset({
+        imageSize: imageNaturalSize,
+        offset: current,
+        outputHeight,
+        outputWidth,
+        rotation: cropRotation,
+        zoom: cropZoom
+      });
+
+      return next.x === current.x && next.y === current.y ? current : next;
+    });
+  }, [cropRotation, cropZoom, imageNaturalSize, outputHeight, outputWidth]);
+
+  const finishCropDrag = (pointerId: number): void => {
+    if (cropDragRef.current?.pointerId !== pointerId) {
+      return;
+    }
+
+    cropDragRef.current = null;
+    setIsDraggingCrop(false);
+  };
+
+  const handleCropPointerDown = (event: PointerEvent<HTMLDivElement>): void => {
+    if (isApplyingCrop || event.button !== 0) {
+      return;
+    }
+
+    cropDragRef.current = {
+      pointerId: event.pointerId,
+      startOffset: cropOffset,
+      startX: event.clientX,
+      startY: event.clientY
+    };
+    setIsDraggingCrop(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleCropPointerMove = (event: PointerEvent<HTMLDivElement>): void => {
+    const dragState = cropDragRef.current;
+    const stage = stageRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId || !stage) {
+      return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const deltaX = ((event.clientX - dragState.startX) / stageRect.width) * outputWidth;
+    const deltaY = ((event.clientY - dragState.startY) / stageRect.height) * outputHeight;
+
+    setCropOffset(
+      clampCropOffset({
+        imageSize: imageNaturalSize,
+        offset: {
+          x: dragState.startOffset.x + deltaX,
+          y: dragState.startOffset.y + deltaY
+        },
+        outputHeight,
+        outputWidth,
+        rotation: cropRotation,
+        zoom: cropZoom
+      })
+    );
+  };
+
+  const cropOffsetXPercent = (cropOffset.x / outputWidth) * 100;
+  const cropOffsetYPercent = (cropOffset.y / outputHeight) * 100;
 
   const editorDialog = pendingEdit ? (
     <div
@@ -235,12 +421,31 @@ export function ProfileImageUploader({
 
         <div className="personal-profile-picture-editor__stage" data-crop-shape={cropShape}>
           <div
-            className="personal-profile-picture-editor__image"
-            style={{
-              backgroundImage: `url(${pendingEdit.dataUrl})`,
-              transform: `scale(${cropZoom}) rotate(${cropRotation}deg)`
+            aria-label="Drag image to reposition crop"
+            className="personal-profile-picture-editor__image-frame"
+            data-dragging={isDraggingCrop ? "true" : undefined}
+            onPointerCancel={(event) => {
+              finishCropDrag(event.pointerId);
             }}
-          />
+            onPointerDown={handleCropPointerDown}
+            onPointerMove={handleCropPointerMove}
+            onPointerUp={(event) => {
+              finishCropDrag(event.pointerId);
+            }}
+            ref={stageRef}
+            role="img"
+            style={{
+              transform: `translate(${cropOffsetXPercent}%, ${cropOffsetYPercent}%)`
+            }}
+          >
+            <div
+              className="personal-profile-picture-editor__image"
+              style={{
+                backgroundImage: `url(${pendingEdit.dataUrl})`,
+                transform: `scale(${cropZoom}) rotate(${cropRotation}deg)`
+              }}
+            />
+          </div>
           <div
             className="personal-profile-picture-editor__crop-frame"
             data-crop-shape={cropShape}

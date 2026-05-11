@@ -1,17 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getJobView, readJobView } from "../api/jobs";
+import { ApplicationUnavailableState } from "../components/ApplicationGuardStates";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import {
   ResumeUploadGuardCard,
   ResumeUploadSection
 } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
+import { getNextApplicationPath } from "../lib/applicationGuards";
 import type {
   CandidateResumeState,
   CandidateSession,
   PrototypeResumeRecord
 } from "../contracts/application";
 import type { JobViewData } from "../contracts/job-view";
+import {
+  markPrototypeApplicationSubmitted,
+  readPrototypeApplicationRecord
+} from "../lib/prototype-application";
 import { readPrototypeSession } from "../lib/prototype-auth";
 import {
   readOrCreatePrototypeResumeState,
@@ -40,19 +46,7 @@ function LoadingState(): JSX.Element {
 }
 
 function MissingState(): JSX.Element {
-  return (
-    <div className="job-view__shell">
-      <ApplicationStepShell>
-        <section className="application-step__panel application-step__guard surface-card surface-card--section">
-          <p className="section-kicker">Unavailable</p>
-          <h1>Application step not available</h1>
-          <p className="muted-copy">
-            We couldn’t resolve the role for this application step.
-          </p>
-        </section>
-      </ApplicationStepShell>
-    </div>
-  );
+  return <ApplicationUnavailableState />;
 }
 
 function GuardState({ job }: { job: JobViewData }): JSX.Element {
@@ -60,7 +54,9 @@ function GuardState({ job }: { job: JobViewData }): JSX.Element {
     <div className="job-view__shell">
       <ApplicationStepShell>
         <ResumeUploadGuardCard
-          authHref={buildApplicationAuthPath(job.id, "signin")}
+          authHref={buildApplicationAuthPath(job.id, "signin", {
+            next: `${window.location.pathname}${window.location.search}`
+          })}
           backHref={buildJobViewPath(job.id)}
           job={job}
         />
@@ -85,8 +81,29 @@ function ReadyState({
     setResumeState(initialResumeState);
   }, [initialResumeState]);
 
+  const existingApplication = useMemo(
+    () => (session ? readPrototypeApplicationRecord(session, job.id) : null),
+    [job.id, session]
+  );
+
+  useEffect(() => {
+    if (!existingApplication) {
+      return;
+    }
+
+    transitionTo(getNextApplicationPath(job.id), {
+      direction: "forward",
+      replace: true,
+      source: "guard-recovery"
+    });
+  }, [existingApplication, job.id, transitionTo]);
+
   if (!session) {
     return <GuardState job={job} />;
+  }
+
+  if (existingApplication) {
+    return <LoadingState />;
   }
 
   const updateResumeState = (nextState: CandidateResumeState): void => {
@@ -101,6 +118,7 @@ function ReadyState({
     };
 
     updateResumeState(nextState);
+    markPrototypeApplicationSubmitted(session, job.id, resume.id);
     transitionTo(buildApplicationParsingPath(job.id), {
       direction: "forward",
       source: "resume-upload-complete"

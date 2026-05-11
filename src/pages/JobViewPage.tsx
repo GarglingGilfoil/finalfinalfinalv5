@@ -15,8 +15,11 @@ import { TransitionLink } from "../components/application/TransitionLink";
 import { GoogleAdSenseAd } from "../components/GoogleAdSenseAd";
 import { JobBodySections } from "../components/JobBodySections";
 import type { JobViewData } from "../contracts/job-view";
+import { getNextApplicationPath } from "../lib/applicationGuards";
+import { hasPrototypeAppliedToJob } from "../lib/prototype-application";
+import { readPrototypeSession } from "../lib/prototype-auth";
 import {
-  buildApplicationAuthPath,
+  buildJobSearchPath,
   navigateTo,
   readNavigationState,
   type JobViewLayoutVariant,
@@ -109,9 +112,16 @@ function MissingState(): JSX.Element {
           <p className="section-kicker">Unavailable</p>
           <h1>Job not found</h1>
           <p className="muted-copy">
-            This route is wired for the Ditto Jobs job-view template, but the requested
-            job payload was not available.
+            The role may be outdated, moved, or no longer available.
           </p>
+          <div className="job-view__recovery-actions">
+            <TransitionLink className="button button--job-primary" href={buildJobSearchPath()} source="guard-recovery">
+              Search jobs
+            </TransitionLink>
+            <TransitionLink className="button button--ghost" direction="back" href="/" source="guard-recovery">
+              Go home
+            </TransitionLink>
+          </div>
         </div>
       </section>
     </div>
@@ -413,7 +423,9 @@ function ReadyState({
     [job]
   );
   const companyInitial = job.companyName.trim().charAt(0).toUpperCase() || "C";
-  const applyHref = buildApplicationAuthPath(job.id, "signin");
+  const session = readPrototypeSession();
+  const hasApplied = hasPrototypeAppliedToJob(session, job.id);
+  const applyHref = getNextApplicationPath(job.id);
 
   useEffect(() => {
     setIsMotionReady(false);
@@ -426,7 +438,11 @@ function ReadyState({
     };
   }, [activeLayout, activeMotion, isMobile, job.id]);
 
-  const primaryApplyAction = (
+  const primaryApplyAction = hasApplied ? (
+    <button className="button button--job-primary job-sheet__primary-apply" disabled type="button">
+      Applied
+    </button>
+  ) : (
     <TransitionLink
       className="button button--job-primary job-sheet__primary-apply"
       href={applyHref}
@@ -467,9 +483,15 @@ function ReadyState({
         <div className="job-sheet__footer-copy">
           <strong>Ready to apply?</strong>
         </div>
-        <TransitionLink className="button button--job-primary" href={applyHref} source="job-apply">
-          Apply Now
-        </TransitionLink>
+        {hasApplied ? (
+          <button className="button button--job-primary" disabled type="button">
+            Applied
+          </button>
+        ) : (
+          <TransitionLink className="button button--job-primary" href={applyHref} source="job-apply">
+            Apply Now
+          </TransitionLink>
+        )}
       </div>
     ),
     bottomAdSlot: (
@@ -504,7 +526,7 @@ function ReadyState({
           .join(" ")}
       >
         <section className="job-view__stack">
-          {searchResultsReturnHref ? <BackToResultsButton href={searchResultsReturnHref} /> : null}
+          <BackToResultsButton href={searchResultsReturnHref ?? buildJobSearchPath()} />
           {isMobile
             ? renderMobileLayout(blocks, activeMotion, isMotionReady)
             : renderDesktopLayout(activeLayout, activeMotion, isMotionReady, blocks)}

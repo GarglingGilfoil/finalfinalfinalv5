@@ -3,12 +3,11 @@ import { ChevronDown, LogOut, Search, Settings, UserRound } from "lucide-react";
 import { ApplicationLocationField, type ApplicationLocationValue } from "./ApplicationLocationField";
 import { TransitionLink } from "./application/TransitionLink";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
-import { HOME_AUTH_REQUEST_EVENT, type HomeAuthRequestMode } from "../lib/home-auth-events";
 import { buildPrototypeCandidateProfile } from "../lib/prototype-candidate-profile";
 import { clearPrototypeSession, readPrototypeSession } from "../lib/prototype-auth";
 import {
-  buildApplicationAuthPath,
   buildCandidateProfilePath,
+  buildGlobalAuthPath,
   buildJobSearchPath,
   buildJobViewPath
 } from "../lib/router";
@@ -20,16 +19,6 @@ interface PageChromeHeaderProps {
 
 function buildInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || "DU";
-}
-
-function requestHomeAuth(mode: HomeAuthRequestMode): void {
-  window.dispatchEvent(
-    new CustomEvent(HOME_AUTH_REQUEST_EVENT, {
-      detail: {
-        mode
-      }
-    })
-  );
 }
 
 export function PageChromeHeader({
@@ -257,61 +246,40 @@ export function PageChromeHeader({
                     source="header-profile"
                   >
                     <UserRound aria-hidden="true" />
-                    View Profile
+                    View profile
                   </TransitionLink>
                   <TransitionLink
-                    href={buildCandidateProfilePath()}
+                    href={buildCandidateProfilePath("settings")}
                     onClick={() => setIsUserMenuOpen(false)}
                     role="menuitem"
                     source="header-settings"
                   >
                     <Settings aria-hidden="true" />
-                    Edit Settings
+                    Edit settings
                   </TransitionLink>
                   <button onClick={handleLogout} role="menuitem" type="button">
                     <LogOut aria-hidden="true" />
-                    Log Out
+                    Log out
                   </button>
                 </div>
               ) : null}
             </div>
           ) : (
             <nav aria-label="Account actions" className="site-header__actions">
-              {jobId ? (
-                <>
-                  <TransitionLink
-                    className="button button--ghost"
-                    href={buildApplicationAuthPath(jobId, "signin")}
-                    source="header-signin"
-                  >
-                    Log in
-                  </TransitionLink>
-                  <TransitionLink
-                    className="button button--primary"
-                    href={buildApplicationAuthPath(jobId, "signup")}
-                    source="header-signup"
-                  >
-                    Sign up
-                  </TransitionLink>
-                </>
-              ) : (
-                <>
-                  <button
-                    className="button button--ghost"
-                    onClick={() => requestHomeAuth("signin")}
-                    type="button"
-                  >
-                    Log in
-                  </button>
-                  <button
-                    className="button button--primary"
-                    onClick={() => requestHomeAuth("signup")}
-                    type="button"
-                  >
-                    Sign up
-                  </button>
-                </>
-              )}
+              <TransitionLink
+                className="button button--ghost"
+                href={buildGlobalAuthPath("signin")}
+                source="header-signin"
+              >
+                Sign in
+              </TransitionLink>
+              <TransitionLink
+                className="button button--primary"
+                href={buildGlobalAuthPath("signup")}
+                source="header-signup"
+              >
+                Create profile
+              </TransitionLink>
             </nav>
           )}
         </div>

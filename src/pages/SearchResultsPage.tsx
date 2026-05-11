@@ -31,7 +31,6 @@ import {
 import {
   buildJobViewPath,
   navigateTo,
-  REFERENCE_JOB_ID,
   type SearchResultsNavigationPayload
 } from "../lib/router";
 
@@ -98,35 +97,35 @@ interface MockJobResult extends MockBaseJob {
 }
 
 const DATE_FILTERS: readonly FilterOption[] = [
-  { id: "24h", label: "Past 24 hours" },
-  { id: "7d", label: "Past 7 days" },
-  { id: "14d", label: "Past 14 days" },
-  { id: "30d", label: "Past 30 days" }
+  { id: "24h", label: "Past 24 hours", count: 42 },
+  { id: "7d", label: "Past 7 days", count: 186 },
+  { id: "14d", label: "Past 14 days", count: 312 },
+  { id: "30d", label: "Past 30 days", count: MOCK_RESULT_COUNT }
 ] as const;
 
 const WORKPLACE_FILTERS: readonly FilterOption[] = [
-  { id: "onsite", label: "On-site" },
-  { id: "hybrid", label: "Hybrid" },
-  { id: "remote", label: "Remote" }
+  { id: "onsite", label: "On-site", count: 182 },
+  { id: "hybrid", label: "Hybrid", count: 204 },
+  { id: "remote", label: "Remote", count: 82 }
 ] as const;
 
 const JOB_TYPE_FILTERS: readonly FilterOption[] = [
-  { id: "permanent", label: "Permanent" },
-  { id: "contract", label: "Contract" },
-  { id: "fixed-term", label: "Fixed-term" },
-  { id: "temporary", label: "Temporary" },
-  { id: "internship", label: "Internship" },
-  { id: "freelance", label: "Freelance" }
+  { id: "permanent", label: "Permanent", count: 318 },
+  { id: "contract", label: "Contract", count: 74 },
+  { id: "fixed-term", label: "Fixed-term", count: 32 },
+  { id: "temporary", label: "Temporary", count: 18 },
+  { id: "internship", label: "Internship", count: 14 },
+  { id: "freelance", label: "Freelance", count: 12 }
 ] as const;
 
 const EXPERIENCE_FILTERS: readonly FilterOption[] = [
-  { id: "graduate", label: "Graduate" },
-  { id: "junior", label: "Junior" },
-  { id: "intermediate", label: "Intermediate" },
-  { id: "senior", label: "Senior" },
-  { id: "lead", label: "Lead" },
-  { id: "manager", label: "Manager" },
-  { id: "executive", label: "Executive" }
+  { id: "graduate", label: "Graduate", count: 31 },
+  { id: "junior", label: "Junior", count: 68 },
+  { id: "intermediate", label: "Intermediate", count: 142 },
+  { id: "senior", label: "Senior", count: 156 },
+  { id: "lead", label: "Lead", count: 42 },
+  { id: "manager", label: "Manager", count: 21 },
+  { id: "executive", label: "Executive", count: 8 }
 ] as const;
 
 const INDUSTRY_FILTERS: readonly FilterOption[] = [
@@ -136,7 +135,57 @@ const INDUSTRY_FILTERS: readonly FilterOption[] = [
   { id: "retail", label: "Retail", count: 35 },
   { id: "healthcare", label: "Healthcare", count: 28 },
   { id: "marketing", label: "Marketing", count: 24 },
-  { id: "design", label: "Design", count: 18 }
+  { id: "design", label: "Design", count: 18 },
+  { id: "accounting", label: "Accounting", count: 21 },
+  { id: "advertising", label: "Advertising", count: 19 },
+  { id: "aerospace", label: "Aerospace", count: 7 },
+  { id: "agriculture", label: "Agriculture", count: 12 },
+  { id: "architecture", label: "Architecture", count: 10 },
+  { id: "automotive", label: "Automotive", count: 18 },
+  { id: "banking", label: "Banking", count: 42 },
+  { id: "biotechnology", label: "Biotechnology", count: 9 },
+  { id: "business-services", label: "Business Services", count: 27 },
+  { id: "chemicals", label: "Chemicals", count: 6 },
+  { id: "civil-engineering", label: "Civil Engineering", count: 11 },
+  { id: "construction", label: "Construction", count: 25 },
+  { id: "consulting", label: "Consulting", count: 34 },
+  { id: "consumer-goods", label: "Consumer Goods", count: 17 },
+  { id: "cybersecurity", label: "Cybersecurity", count: 15 },
+  { id: "artificial-intelligence", label: "Artificial Intelligence", count: 28 },
+  { id: "defence", label: "Defence", count: 5 },
+  { id: "e-commerce", label: "E-commerce", count: 31 },
+  { id: "education", label: "Education", count: 20 },
+  { id: "energy", label: "Energy", count: 16 },
+  { id: "engineering", label: "Engineering", count: 29 },
+  { id: "entertainment", label: "Entertainment", count: 8 },
+  { id: "environmental-services", label: "Environmental Services", count: 7 },
+  { id: "events", label: "Events", count: 9 },
+  { id: "facilities-management", label: "Facilities Management", count: 13 },
+  { id: "fashion", label: "Fashion", count: 11 },
+  { id: "fmcg", label: "FMCG", count: 23 },
+  { id: "food-and-beverage", label: "Food and Beverage", count: 18 },
+  { id: "gaming", label: "Gaming", count: 10 },
+  { id: "government", label: "Government", count: 14 },
+  { id: "hospitality", label: "Hospitality", count: 17 },
+  { id: "human-resources", label: "Human Resources", count: 22 },
+  { id: "industrial-manufacturing", label: "Industrial Manufacturing", count: 16 },
+  { id: "insurance", label: "Insurance", count: 26 },
+  { id: "legal-services", label: "Legal Services", count: 12 },
+  { id: "logistics", label: "Logistics", count: 24 },
+  { id: "media", label: "Media", count: 13 },
+  { id: "mining", label: "Mining", count: 19 },
+  { id: "non-profit", label: "Non-Profit", count: 6 },
+  { id: "pharmaceuticals", label: "Pharmaceuticals", count: 14 },
+  { id: "property", label: "Property", count: 15 },
+  { id: "public-sector", label: "Public Sector", count: 12 },
+  { id: "real-estate", label: "Real Estate", count: 18 },
+  { id: "renewable-energy", label: "Renewable Energy", count: 11 },
+  { id: "saas", label: "SaaS", count: 30 },
+  { id: "telecommunications", label: "Telecommunications", count: 21 },
+  { id: "tourism", label: "Tourism", count: 9 },
+  { id: "transport", label: "Transport", count: 20 },
+  { id: "utilities", label: "Utilities", count: 8 },
+  { id: "venture-capital", label: "Venture Capital", count: 5 }
 ] as const;
 
 const COMPANY_FILTERS: readonly FilterOption[] = [
@@ -516,7 +565,7 @@ function parseMultiParam(
   key: string,
   options: readonly FilterOption[]
 ): string[] {
-  const validIds = new Set(options.map((option) => option.id));
+  const validIds = new Set(options.filter(isAvailableFilterOption).map((option) => option.id));
 
   return (params.get(key) ?? "")
     .split(",")
@@ -530,7 +579,15 @@ function parseSingleParam(
   options: readonly FilterOption[]
 ): string | null {
   const value = params.get(key)?.trim();
-  return value && options.some((option) => option.id === value) ? value : null;
+  return value && options.some((option) => option.id === value && isAvailableFilterOption(option)) ? value : null;
+}
+
+function isAvailableFilterOption(option: FilterOption): boolean {
+  return typeof option.count === "number" && option.count >= 1;
+}
+
+function getAvailableFilterOptions(options: readonly FilterOption[]): FilterOption[] {
+  return options.filter(isAvailableFilterOption);
 }
 
 function parseFiltersFromParams(params: URLSearchParams): SearchFilterState {
@@ -966,7 +1023,7 @@ function SelectedJobPreview({
   idPrefix?: string;
   job: MockJobResult;
 }): JSX.Element {
-  const showMoreHref = buildJobViewPath(REFERENCE_JOB_ID);
+  const showMoreHref = buildJobViewPath(job.id);
   const showMoreLabel = `Show more about ${job.title} at ${job.companyName}`;
   const titleId = `${idPrefix}-${job.id}`;
 
@@ -988,7 +1045,6 @@ function SelectedJobPreview({
             </p>
           </div>
         </div>
-        {/* TODO: Route to each real search result ID once backend search data is connected. */}
         <a
           aria-label={showMoreLabel}
           className="search-results-job-preview__show-more search-results-job-preview__show-more--top"
@@ -1072,14 +1128,14 @@ export function SearchResultsPage(): JSX.Element {
 
   const filteredIndustryOptions = useMemo(
     () =>
-      INDUSTRY_FILTERS.filter((option) =>
+      getAvailableFilterOptions(INDUSTRY_FILTERS).filter((option) =>
         option.label.toLowerCase().includes(industryQuery.trim().toLowerCase())
       ),
     [industryQuery]
   );
   const filteredCompanyOptions = useMemo(
     () =>
-      COMPANY_FILTERS.filter((option) =>
+      getAvailableFilterOptions(COMPANY_FILTERS).filter((option) =>
         option.label.toLowerCase().includes(companyQuery.trim().toLowerCase())
       ),
     [companyQuery]
@@ -1421,9 +1477,19 @@ export function SearchResultsPage(): JSX.Element {
   const filtersToggleLabel = activeFilterCount > 0 ? `Filters ${activeFilterCount}` : "Filters";
 
   function renderMultiOptions(filterKey: MultiFilterKey, options: readonly FilterOption[]): JSX.Element {
+    const availableOptions = getAvailableFilterOptions(options);
+    const isScrollable = availableOptions.length > 6;
+
     return (
-      <div className="search-results-popover__options">
-        {options.map((option) => (
+      <div
+        className={[
+          "search-results-popover__options",
+          isScrollable ? "search-results-popover__options--scrollable" : null
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {availableOptions.map((option) => (
           <label className="search-results-option" key={option.id}>
             <input
               checked={filters[filterKey].includes(option.id)}
@@ -1464,8 +1530,9 @@ export function SearchResultsPage(): JSX.Element {
             <label className="search-results-option">
               <input checked={!filters.date} name="date-filter" onChange={() => setDateFilter(null)} type="radio" />
               <span>Any time</span>
+              <small>{MOCK_RESULT_COUNT}</small>
             </label>
-            {DATE_FILTERS.map((option) => (
+            {getAvailableFilterOptions(DATE_FILTERS).map((option) => (
               <label className="search-results-option" key={option.id}>
                 <input
                   checked={filters.date === option.id}
@@ -1474,6 +1541,7 @@ export function SearchResultsPage(): JSX.Element {
                   type="radio"
                 />
                 <span>{option.label}</span>
+                {typeof option.count === "number" ? <small>{option.count}</small> : null}
               </label>
             ))}
           </div>

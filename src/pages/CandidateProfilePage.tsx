@@ -6,15 +6,23 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ClipboardEvent,
+  type CSSProperties,
+  type FormEvent,
   type KeyboardEvent,
-  type ReactNode
+  type ReactNode,
+  type RefObject
 } from "react";
 import {
+  AlertTriangle,
+  Briefcase,
   Check,
+  ChevronDown,
   Download,
   Edit3,
   Eye,
   FileText,
+  MapPin,
   Trash2,
   Upload,
   X
@@ -24,7 +32,7 @@ import {
   ApplicationPhoneField,
   getCandidatePhoneNumberError
 } from "../components/ApplicationPhoneField";
-import { AuthRichTextField } from "../components/ApplicationAuthPrimitives";
+import { AuthPasswordField, AuthRichTextField } from "../components/ApplicationAuthPrimitives";
 import { ProfileImageUploader } from "../components/ProfileImageUploader";
 import { ResumeUploadSection } from "../components/ResumeUploadSection";
 import { TransitionLink } from "../components/application/TransitionLink";
@@ -50,7 +58,8 @@ import type {
   CandidateProfileState
 } from "../contracts/candidate";
 import { searchLanguages } from "../lib/languages";
-import { searchNationalities } from "../lib/nationalities";
+import { searchNationalities, type NationalityOption } from "../lib/nationalities";
+import { searchSkills } from "../lib/skills";
 import { searchCurrencies } from "../lib/currencies";
 import {
   buildProfileUploadFile,
@@ -67,8 +76,14 @@ import {
   readOrCreatePrototypeResumeState,
   savePrototypeResumeState
 } from "../lib/prototype-resume";
-import { readPrototypeSession } from "../lib/prototype-auth";
-import { buildApplicationAuthPath } from "../lib/router";
+import { clearPrototypeAccountData } from "../lib/prototype-account";
+import { clearPrototypeSession, readPrototypeSession } from "../lib/prototype-auth";
+import {
+  buildCandidateProfilePath,
+  buildGlobalAuthPath,
+  buildJobSearchPath,
+  navigateTo
+} from "../lib/router";
 
 type ProfileSectionId =
   | "identity"
@@ -80,14 +95,13 @@ type ProfileSectionId =
   | "education"
   | "files"
   | "work"
-  | "remuneration"
   | "personal";
 
 type ProfileTabId =
   | "about"
   | "experience"
-  | "files";
-type ProfileBackgroundMode = "current" | "home";
+  | "files"
+  | "settings";
 
 type ValidationErrors = Record<string, string | undefined>;
 
@@ -106,15 +120,19 @@ const PROFILE_TABS: Array<{ id: ProfileTabId; label: string; description: string
     id: "files",
     label: "Files",
     description: "Manage your files and keep your resume up to date."
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    description: "Review your account basics and profile access."
   }
 ];
 
-const REFERENCE_JOB_ID = "196794136";
 const PROFILE_FILE_ACCEPT =
   ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp";
 const PROFILE_FILE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const PROFILE_FILE_NAME_MAX_LENGTH = 50;
-const PROFILE_BACKGROUND_STORAGE_KEY = "ditto:candidate-profile-background";
+const PROFILE_TAB_SCROLL_STORAGE_KEY = "ditto-jobs.profile-tab-scroll";
 
 const LANGUAGE_PROFICIENCY_OPTIONS: CandidateLanguageProficiency[] = [
   "Native or bilingual proficiency",
@@ -138,6 +156,24 @@ const NOTICE_PERIOD_OPTIONS: CandidateNoticePeriod[] = [
   "3 Calendar Months"
 ];
 
+function markProfileTabScrollPending(): void {
+  try {
+    window.sessionStorage.setItem(PROFILE_TAB_SCROLL_STORAGE_KEY, "true");
+  } catch {
+    // This is only a same-session UI alignment hint. Ignore storage failures.
+  }
+}
+
+function consumeProfileTabScrollPending(): boolean {
+  try {
+    const isPending = window.sessionStorage.getItem(PROFILE_TAB_SCROLL_STORAGE_KEY) === "true";
+    window.sessionStorage.removeItem(PROFILE_TAB_SCROLL_STORAGE_KEY);
+    return isPending;
+  } catch {
+    return false;
+  }
+}
+
 function formatFileSize(size: number): string {
   if (size < 1024 * 1024) {
     return `${Math.max(1, Math.round(size / 1024))} KB`;
@@ -154,58 +190,6 @@ function getFileExtensionFromName(fileName: string, fallback: string): string {
   }
 
   return extension.toUpperCase();
-}
-
-function readInitialProfileBackgroundMode(): ProfileBackgroundMode {
-  const profileBgParam = new URLSearchParams(window.location.search).get("profileBg");
-
-  if (profileBgParam === "home" || profileBgParam === "current") {
-    return profileBgParam;
-  }
-
-  try {
-    const storedMode = window.localStorage.getItem(PROFILE_BACKGROUND_STORAGE_KEY);
-
-    if (storedMode === "home" || storedMode === "current") {
-      return storedMode;
-    }
-  } catch {
-    return "current";
-  }
-
-  return "current";
-}
-
-function ProfileBackgroundToggle({
-  mode,
-  onChange
-}: {
-  mode: ProfileBackgroundMode;
-  onChange: (mode: ProfileBackgroundMode) => void;
-}): JSX.Element {
-  return (
-    <div className="profile-background-toggle" aria-label="Profile background design QA toggle">
-      <span>Profile background</span>
-      <div className="profile-background-toggle__options" role="group" aria-label="Profile background">
-        <button
-          aria-pressed={mode === "current"}
-          className={mode === "current" ? "is-active" : ""}
-          onClick={() => onChange("current")}
-          type="button"
-        >
-          Current
-        </button>
-        <button
-          aria-pressed={mode === "home"}
-          className={mode === "home" ? "is-active" : ""}
-          onClick={() => onChange("home")}
-          type="button"
-        >
-          Home
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function buildPdfPreviewUrl(objectUrl: string): string {
@@ -269,9 +253,9 @@ function formatDateValue(value: string): string | null {
     return null;
   }
 
-  const date = new Date(`${value}T00:00:00`);
+  const date = parseIsoDate(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (!date) {
     return value;
   }
 
@@ -280,6 +264,60 @@ function formatDateValue(value: string): string | null {
     month: "long",
     year: "numeric"
   }).format(date);
+}
+
+function parseIsoDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function validateDateOfBirth(value: string): string | undefined {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return undefined;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+    return "Enter date of birth as YYYY MM DD.";
+  }
+
+  const date = parseIsoDate(trimmedValue);
+
+  if (!date) {
+    return "Enter a real date of birth.";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (date > today) {
+    return "Date of birth cannot be in the future.";
+  }
+
+  if (date.getFullYear() < 1900) {
+    return "Enter a date of birth after 1900.";
+  }
+
+  return undefined;
 }
 
 function formatMoneyValue(value: CandidateMoneyValue): string | null {
@@ -442,6 +480,10 @@ function validateProfileSection(
     });
   }
 
+  if (sectionId === "personal") {
+    errors.dateOfBirth = validateDateOfBirth(profile.dateOfBirth);
+  }
+
   if (sectionId === "career") {
     profile.careerEntries.forEach((entry) => {
       if (!entry.jobTitle.trim()) {
@@ -473,7 +515,7 @@ function validateProfileSection(
     });
   }
 
-  if (sectionId === "remuneration") {
+  if (sectionId === "work") {
     (["currentRemuneration", "desiredRemuneration"] as const).forEach((key) => {
       const value = profile[key];
       const amount = value.amount.trim();
@@ -577,7 +619,12 @@ function calculateCompletion(profile: CandidateProfileState) {
     },
     { id: "education-years", target: "education", label: "Education years", complete: hasEducationYears },
     { id: "files", target: "files", label: "Files", complete: profile.files.length > 0 },
-    { id: "date-of-birth", target: "personal", label: "Date of birth", complete: Boolean(profile.dateOfBirth) },
+    {
+      id: "date-of-birth",
+      target: "personal",
+      label: "Date of birth",
+      complete: Boolean(profile.dateOfBirth.trim() && !validateDateOfBirth(profile.dateOfBirth))
+    },
     { id: "nationality", target: "personal", label: "Nationality", complete: Boolean(profile.nationality) },
     { id: "citizenship", target: "personal", label: "Citizenship", complete: Boolean(profile.citizenship) },
     {
@@ -600,14 +647,14 @@ function calculateCompletion(profile: CandidateProfileState) {
     },
     {
       id: "current-remuneration",
-      target: "remuneration",
-      label: "Current remuneration",
+      target: "work",
+      label: "Current compensation",
       complete: hasMoneyValue(profile.currentRemuneration)
     },
     {
       id: "desired-remuneration",
-      target: "remuneration",
-      label: "Desired remuneration",
+      target: "work",
+      label: "Desired compensation",
       complete: hasMoneyValue(profile.desiredRemuneration)
     }
   ];
@@ -636,7 +683,7 @@ function TextField({
   label: string;
   onChange?: (value: string) => void;
   placeholder?: string;
-  type?: "date" | "email" | "number" | "text";
+  type?: "date" | "email" | "number" | "password" | "text";
   value: string;
 }): JSX.Element {
   const id = useId();
@@ -678,16 +725,30 @@ function TextField({
   );
 }
 
-function SelectField({
-  children,
-  disabled,
+function getDateOfBirthParts(value: string): { day: string; month: string; year: string } {
+  const [year = "", month = "", day = ""] = value.split("-");
+
+  return {
+    day: day.replace(/\D/g, "").slice(0, 2),
+    month: month.replace(/\D/g, "").slice(0, 2),
+    year: year.replace(/\D/g, "").slice(0, 4)
+  };
+}
+
+function buildDateOfBirthValue(parts: { day: string; month: string; year: string }): string {
+  if (!parts.year && !parts.month && !parts.day) {
+    return "";
+  }
+
+  return [parts.year, parts.month, parts.day].join("-");
+}
+
+function DateOfBirthField({
   error,
   label,
   onChange,
   value
 }: {
-  children: ReactNode;
-  disabled?: boolean;
   error?: string;
   label: string;
   onChange: (value: string) => void;
@@ -695,29 +756,484 @@ function SelectField({
 }): JSX.Element {
   const id = useId();
   const errorId = `${id}-error`;
+  const yearInputRef = useRef<HTMLInputElement | null>(null);
+  const monthInputRef = useRef<HTMLInputElement | null>(null);
+  const dayInputRef = useRef<HTMLInputElement | null>(null);
+  const parts = getDateOfBirthParts(value);
+
+  const updatePart = (
+    part: "day" | "month" | "year",
+    nextValue: string,
+    maxLength: number,
+    nextInputRef?: RefObject<HTMLInputElement>
+  ): void => {
+    const sanitizedValue = nextValue.replace(/\D/g, "").slice(0, maxLength);
+    const nextParts = {
+      ...parts,
+      [part]: sanitizedValue
+    };
+
+    onChange(buildDateOfBirthValue(nextParts));
+
+    if (sanitizedValue.length === maxLength) {
+      window.setTimeout(() => nextInputRef?.current?.focus(), 0);
+    }
+  };
+
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>): void => {
+    const pastedDigits = event.clipboardData.getData("text").replace(/\D/g, "");
+
+    if (pastedDigits.length < 6) {
+      return;
+    }
+
+    event.preventDefault();
+
+    onChange(
+      buildDateOfBirthValue({
+        year: pastedDigits.slice(0, 4),
+        month: pastedDigits.slice(4, 6),
+        day: pastedDigits.slice(6, 8)
+      })
+    );
+    window.setTimeout(() => dayInputRef.current?.focus(), 0);
+  };
+
+  const handleBackspaceToPrevious = (
+    event: KeyboardEvent<HTMLInputElement>,
+    currentValue: string,
+    previousInputRef?: RefObject<HTMLInputElement>
+  ): void => {
+    if (event.key === "Backspace" && currentValue.length === 0) {
+      previousInputRef?.current?.focus();
+    }
+  };
 
   return (
-    <label className="auth-field candidate-profile-field">
-      <span className="auth-field__label">{label}</span>
-      <select
+    <div className="auth-field candidate-profile-field candidate-profile-date-field">
+      <span className="auth-field__label" id={id}>
+        {label}
+      </span>
+      <div
         aria-describedby={error ? errorId : undefined}
         aria-invalid={Boolean(error)}
-        className={["auth-field__input", error ? "auth-field__input--error" : ""]
+        aria-labelledby={id}
+        className={[
+          "candidate-profile-date-field__control",
+          error ? "candidate-profile-date-field__control--error" : ""
+        ]
           .filter(Boolean)
           .join(" ")}
-        disabled={disabled}
-        id={id}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
+        role="group"
       >
-        {children}
-      </select>
+        <input
+          aria-label={`${label} year`}
+          inputMode="numeric"
+          maxLength={4}
+          onChange={(event) => updatePart("year", event.target.value, 4, monthInputRef)}
+          onPaste={handlePaste}
+          placeholder="YYYY"
+          ref={yearInputRef}
+          type="text"
+          value={parts.year}
+        />
+        <span aria-hidden="true">/</span>
+        <input
+          aria-label={`${label} month`}
+          inputMode="numeric"
+          maxLength={2}
+          onChange={(event) => updatePart("month", event.target.value, 2, dayInputRef)}
+          onKeyDown={(event) => handleBackspaceToPrevious(event, parts.month, yearInputRef)}
+          onPaste={handlePaste}
+          placeholder="MM"
+          ref={monthInputRef}
+          type="text"
+          value={parts.month}
+        />
+        <span aria-hidden="true">/</span>
+        <input
+          aria-label={`${label} day`}
+          inputMode="numeric"
+          maxLength={2}
+          onChange={(event) => updatePart("day", event.target.value, 2)}
+          onKeyDown={(event) => handleBackspaceToPrevious(event, parts.day, monthInputRef)}
+          onPaste={handlePaste}
+          placeholder="DD"
+          ref={dayInputRef}
+          type="text"
+          value={parts.day}
+        />
+      </div>
       {error ? (
         <span className="auth-field__error" id={errorId}>
           {error}
         </span>
       ) : null}
-    </label>
+    </div>
+  );
+}
+
+function LanguageProficiencySelect({
+  error,
+  label,
+  onChange,
+  value
+}: {
+  error?: string;
+  label: string;
+  onChange: (value: CandidateLanguageProficiency | "") => void;
+  value: CandidateLanguageProficiency | "";
+}): JSX.Element {
+  const id = useId();
+  const errorId = `${id}-error`;
+  const listboxId = `${id}-listbox`;
+  const fieldRootRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const options: Array<{ label: string; value: CandidateLanguageProficiency | "" }> = [
+    { label: "Choose proficiency", value: "" },
+    ...LANGUAGE_PROFICIENCY_OPTIONS.map((proficiency) => ({ label: proficiency, value: proficiency }))
+  ];
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  );
+  const selectedOption = options[selectedIndex] ?? options[0];
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(selectedIndex);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveIndex(selectedIndex);
+    }
+  }, [isOpen, selectedIndex]);
+
+  const closeDropdown = (): void => {
+    setIsOpen(false);
+  };
+
+  const commitOption = (optionIndex: number): void => {
+    const option = options[optionIndex];
+
+    if (!option) {
+      return;
+    }
+
+    onChange(option.value);
+    closeDropdown();
+    window.setTimeout(() => {
+      buttonRef.current?.focus();
+    }, 0);
+  };
+
+  const moveActiveOption = (direction: 1 | -1): void => {
+    setActiveIndex((current) => {
+      const nextIndex = current + direction;
+
+      if (nextIndex < 0) {
+        return options.length - 1;
+      }
+
+      if (nextIndex >= options.length) {
+        return 0;
+      }
+
+      return nextIndex;
+    });
+  };
+
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      moveActiveOption(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(options.length - 1);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      closeDropdown();
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+
+      if (!isOpen) {
+        setIsOpen(true);
+        return;
+      }
+
+      commitOption(activeIndex);
+    }
+  };
+
+  return (
+    <div
+      className="auth-field career-review-select-field candidate-profile-proficiency-select"
+      onBlur={(event) => {
+        const nextFocusedTarget = event.relatedTarget;
+
+        if (nextFocusedTarget instanceof Node && fieldRootRef.current?.contains(nextFocusedTarget)) {
+          return;
+        }
+
+        closeDropdown();
+      }}
+      ref={fieldRootRef}
+    >
+      <label className="auth-field__label career-review-label" htmlFor={id}>
+        <span>{label}</span>
+      </label>
+      <button
+        aria-activedescendant={isOpen ? `${id}-option-${activeIndex}` : undefined}
+        aria-controls={isOpen ? listboxId : undefined}
+        aria-describedby={error ? errorId : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-invalid={Boolean(error)}
+        className={[
+          "auth-field__input",
+          "career-review-select-field__trigger",
+          error ? "auth-field__input--error" : ""
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-placeholder={!value ? "true" : "false"}
+        id={id}
+        onClick={() => setIsOpen((current) => !current)}
+        onKeyDown={handleTriggerKeyDown}
+        ref={buttonRef}
+        role="combobox"
+        type="button"
+      >
+        <span className="career-review-select-field__value">
+          {selectedOption?.label || "Choose proficiency"}
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="career-review-select-field__chevron"
+          data-open={isOpen || undefined}
+        />
+      </button>
+      {isOpen ? (
+        <div className="career-review-select-field__panel">
+          <ul className="career-review-select-field__list" id={listboxId} role="listbox">
+            {options.map((option, index) => (
+              <li
+                aria-selected={option.value === value}
+                className="career-review-select-field__option"
+                data-active={index === activeIndex ? "true" : "false"}
+                data-selected={option.value === value ? "true" : "false"}
+                id={`${id}-option-${index}`}
+                key={option.value || "empty"}
+                onClick={() => commitOption(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActiveIndex(index)}
+                role="option"
+                tabIndex={-1}
+              >
+                <span>{option.label}</span>
+                {option.value === value ? (
+                  <Check aria-hidden="true" className="career-review-select-field__check" />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {error ? (
+        <span className="auth-field__error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function NoticePeriodSelect({
+  label,
+  onChange,
+  value
+}: {
+  label: string;
+  onChange: (value: CandidateNoticePeriod) => void;
+  value: CandidateNoticePeriod;
+}): JSX.Element {
+  const id = useId();
+  const listboxId = `${id}-listbox`;
+  const fieldRootRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const options = NOTICE_PERIOD_OPTIONS.map((noticePeriod) => ({
+    label: noticePeriod || "Select notice period",
+    value: noticePeriod
+  }));
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  );
+  const selectedOption = options[selectedIndex] ?? options[0];
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(selectedIndex);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveIndex(selectedIndex);
+    }
+  }, [isOpen, selectedIndex]);
+
+  const closeDropdown = (): void => {
+    setIsOpen(false);
+  };
+
+  const commitOption = (optionIndex: number): void => {
+    const option = options[optionIndex];
+
+    if (!option) {
+      return;
+    }
+
+    onChange(option.value);
+    closeDropdown();
+    window.setTimeout(() => {
+      buttonRef.current?.focus();
+    }, 0);
+  };
+
+  const moveActiveOption = (direction: 1 | -1): void => {
+    setActiveIndex((current) => {
+      const nextIndex = current + direction;
+
+      if (nextIndex < 0) {
+        return options.length - 1;
+      }
+
+      if (nextIndex >= options.length) {
+        return 0;
+      }
+
+      return nextIndex;
+    });
+  };
+
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      moveActiveOption(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(options.length - 1);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      closeDropdown();
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+
+      if (!isOpen) {
+        setIsOpen(true);
+        return;
+      }
+
+      commitOption(activeIndex);
+    }
+  };
+
+  return (
+    <div
+      className="auth-field career-review-select-field candidate-profile-notice-select"
+      onBlur={(event) => {
+        const nextFocusedTarget = event.relatedTarget;
+
+        if (nextFocusedTarget instanceof Node && fieldRootRef.current?.contains(nextFocusedTarget)) {
+          return;
+        }
+
+        closeDropdown();
+      }}
+      ref={fieldRootRef}
+    >
+      <label className="auth-field__label career-review-label" htmlFor={id}>
+        <span>{label}</span>
+      </label>
+      <button
+        aria-activedescendant={isOpen ? `${id}-option-${activeIndex}` : undefined}
+        aria-controls={isOpen ? listboxId : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className="auth-field__input career-review-select-field__trigger"
+        data-placeholder={!value ? "true" : "false"}
+        id={id}
+        onClick={() => setIsOpen((current) => !current)}
+        onKeyDown={handleTriggerKeyDown}
+        ref={buttonRef}
+        role="combobox"
+        type="button"
+      >
+        <span className="career-review-select-field__value">
+          {selectedOption?.label || "Select notice period"}
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="career-review-select-field__chevron"
+          data-open={isOpen || undefined}
+        />
+      </button>
+      {isOpen ? (
+        <div className="career-review-select-field__panel">
+          <ul className="career-review-select-field__list" id={listboxId} role="listbox">
+            {options.map((option, index) => (
+              <li
+                aria-selected={option.value === value}
+                className="career-review-select-field__option"
+                data-active={index === activeIndex ? "true" : "false"}
+                data-selected={option.value === value ? "true" : "false"}
+                id={`${id}-option-${index}`}
+                key={option.value || "empty"}
+                onClick={() => commitOption(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActiveIndex(index)}
+                role="option"
+                tabIndex={-1}
+              >
+                <span>{option.label}</span>
+                {option.value === value ? (
+                  <Check aria-hidden="true" className="career-review-select-field__check" />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1244,19 +1760,15 @@ function CandidateProfileAvatar({
 function CandidateProfileHeader({
   onAvatarChange,
   onCoverChange,
-  onOpenAbout,
   profile
 }: {
   onAvatarChange: (value: CandidateProfilePictureValue | null) => void;
   onCoverChange: (value: CandidateProfilePictureValue | null) => void;
-  onOpenAbout: () => void;
   profile: CandidateProfileState;
 }): JSX.Element {
   const fullName = `${profile.firstName} ${profile.lastName}`.trim();
-  const professionalSubtitle = [
-    profile.currentJobTitle || "Current role not added",
-    profile.location?.label || "Location not added"
-  ].join(" · ");
+  const jobTitle = profile.currentJobTitle || "Current role not added";
+  const location = profile.location?.label || "Location not added";
 
   return (
     <section className="candidate-profile-hero candidate-profile-hero--social surface-card">
@@ -1295,15 +1807,18 @@ function CandidateProfileHeader({
         <div className="candidate-profile-hero__identity-row">
           <div className="candidate-profile-hero__copy">
             <h1>{fullName || "Your profile"}</h1>
-            <p>{professionalSubtitle}</p>
+            <div className="candidate-profile-hero__meta" aria-label="Profile summary">
+              <span>
+                <Briefcase aria-hidden="true" />
+                {jobTitle}
+              </span>
+              <span>
+                <MapPin aria-hidden="true" />
+                {location}
+              </span>
+            </div>
           </div>
-          <button
-            className="button button--ghost candidate-profile-hero__action"
-            onClick={onOpenAbout}
-            type="button"
-          >
-            Edit profile
-          </button>
+          <p className="candidate-profile-hero__member-since">Member since 12 March 2019</p>
         </div>
       </div>
     </section>
@@ -1343,11 +1858,19 @@ function SkillsEditor({
   onChange: (skills: string[]) => void;
   value: string[];
 }): JSX.Element {
+  const inputId = useId();
+  const listboxId = `${inputId}-results`;
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const suggestions = useMemo(() => searchSkills(inputValue, value), [inputValue, value]);
 
-  const addSkill = (): void => {
-    const nextSkill = normalizeSkill(inputValue);
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [suggestions]);
+
+  const addSkill = (skillValue = inputValue): void => {
+    const nextSkill = normalizeSkill(skillValue);
 
     if (!nextSkill) {
       return;
@@ -1361,6 +1884,35 @@ function SkillsEditor({
     onChange([...value, nextSkill]);
     setInputValue("");
     setError(null);
+    setActiveIndex(0);
+  };
+
+  const addInputSkill = (): void => {
+    const exactMatch = suggestions.find(
+      (suggestion) => suggestion.toLowerCase() === normalizeSkill(inputValue).toLowerCase()
+    );
+
+    addSkill(exactMatch ?? inputValue);
+  };
+
+  const moveActiveSuggestion = (direction: 1 | -1): void => {
+    if (!suggestions.length) {
+      return;
+    }
+
+    setActiveIndex((current) => {
+      const nextIndex = current + direction;
+
+      if (nextIndex < 0) {
+        return suggestions.length - 1;
+      }
+
+      if (nextIndex >= suggestions.length) {
+        return 0;
+      }
+
+      return nextIndex;
+    });
   };
 
   return (
@@ -1379,23 +1931,80 @@ function SkillsEditor({
           </span>
         ))}
       </div>
-      <div className="candidate-profile-add-row">
-        <input
-          className="auth-field__input"
-          onChange={(event) => {
-            setInputValue(event.target.value);
-            setError(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addSkill();
+      <div className="candidate-profile-add-row candidate-profile-skill-add-row">
+        <div className="candidate-profile-search-picker candidate-profile-skill-picker">
+          <input
+            aria-activedescendant={
+              suggestions[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined
             }
-          }}
-          placeholder="Add a skill"
-          value={inputValue}
-        />
-        <button className="button button--ghost" onClick={addSkill} type="button">
+            aria-autocomplete="list"
+            aria-controls={listboxId}
+            aria-expanded={suggestions.length > 0}
+            className="auth-field__input"
+            id={inputId}
+            onChange={(event) => {
+              setInputValue(event.target.value);
+              setError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addInputSkill();
+                return;
+              }
+
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                moveActiveSuggestion(1);
+                return;
+              }
+
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                moveActiveSuggestion(-1);
+                return;
+              }
+
+              if (event.key === "Escape") {
+                setInputValue("");
+                setError(null);
+              }
+            }}
+            placeholder="Add a skill"
+            role="combobox"
+            type="text"
+            value={inputValue}
+          />
+          {inputValue.trim() ? (
+            <div
+              className="candidate-profile-search-picker__results candidate-profile-skill-picker__results"
+              id={listboxId}
+              role="listbox"
+            >
+              {suggestions.length ? (
+                suggestions.map((skill, index) => (
+                  <button
+                    aria-selected={index === activeIndex}
+                    className={index === activeIndex ? "is-active" : ""}
+                    id={`${listboxId}-option-${index}`}
+                    key={skill}
+                    onClick={() => addSkill(skill)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    role="option"
+                    type="button"
+                  >
+                    {skill}
+                  </button>
+                ))
+              ) : (
+                <p className="candidate-profile-search-picker__empty">
+                  Press Enter to add "{normalizeSkill(inputValue)}".
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+        <button className="button button--ghost" onClick={() => addInputSkill()} type="button">
           Add
         </button>
       </div>
@@ -1463,27 +2072,20 @@ function LanguagesEditor({
                 <span className="auth-field__error">{errors[`language-${language.id}`]}</span>
               ) : null}
             </div>
-            <SelectField
+            <LanguageProficiencySelect
               error={errors[`proficiency-${language.id}`]}
               label="Proficiency"
               onChange={(proficiency) =>
                 onChange(
                   value.map((entry) =>
                     entry.id === language.id
-                      ? { ...entry, proficiency: proficiency as CandidateLanguageProficiency }
+                      ? { ...entry, proficiency }
                       : entry
                   )
                 )
               }
               value={language.proficiency}
-            >
-              <option value="">Choose proficiency</option>
-              {LANGUAGE_PROFICIENCY_OPTIONS.map((proficiency) => (
-                <option key={proficiency} value={proficiency}>
-                  {proficiency}
-                </option>
-              ))}
-            </SelectField>
+            />
             <button
               aria-label={`Remove ${language.languageName}`}
               className="candidate-profile-icon-button"
@@ -1522,44 +2124,245 @@ function NationalitySelect({
   onChange: (value: CandidateNationalityValue | null) => void;
   value: CandidateNationalityValue | null;
 }): JSX.Element {
+  const fieldId = useId();
+  const listboxId = `${fieldId}-listbox`;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
-  const results = useMemo(() => searchNationalities(query, 10), [query]);
+  const [isOpen, setIsOpen] = useState(false);
+  const results = useMemo(() => searchNationalities(query, 12), [query]);
+  const selectedIndex = results.findIndex((option) => option.countryCode === value?.countryCode);
+  const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : 0);
+  const activeDescendantId =
+    isOpen && results[activeIndex] ? `${fieldId}-option-${results[activeIndex].countryCode}` : undefined;
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [isOpen, results, selectedIndex]);
+
+  const closePanel = (): void => {
+    setIsOpen(false);
+    setQuery("");
+  };
+
+  const openPanel = (): void => {
+    setIsOpen(true);
+    window.setTimeout(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }, 0);
+  };
+
+  const commitOption = (option: NationalityOption): void => {
+    onChange({
+      countryCode: option.countryCode,
+      flag: option.flag,
+      nationality: option.nationality
+    });
+    closePanel();
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
+  };
+
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPanel();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      closePanel();
+    }
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex((current) => {
+        if (!results.length) {
+          return -1;
+        }
+
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex = current + direction;
+
+        if (nextIndex < 0) {
+          return results.length - 1;
+        }
+
+        if (nextIndex >= results.length) {
+          return 0;
+        }
+
+        return nextIndex;
+      });
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePanel();
+      window.setTimeout(() => triggerRef.current?.focus(), 0);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const activeOption = results[activeIndex];
+
+      if (isOpen && activeOption) {
+        event.preventDefault();
+        commitOption(activeOption);
+      }
+    }
+  };
 
   return (
-    <div className="auth-field candidate-profile-search-picker">
-      <span className="auth-field__label">{label}</span>
-      <div className="candidate-profile-nationality-value">
-        {value ? `${value.flag} ${value.nationality}` : "Not added"}
-        {value ? (
-          <button onClick={() => onChange(null)} type="button">
-            Remove
-          </button>
-        ) : null}
+    <div
+      className="auth-field application-location-field candidate-profile-nationality-field"
+      data-country-panel-open={isOpen ? "true" : "false"}
+      onBlur={(event) => {
+        const nextFocusedTarget = event.relatedTarget;
+
+        if (nextFocusedTarget instanceof Node && rootRef.current?.contains(nextFocusedTarget)) {
+          return;
+        }
+
+        closePanel();
+      }}
+      ref={rootRef}
+    >
+      <div className="application-location-field__label-row">
+        <label className="auth-field__label" htmlFor={fieldId}>
+          {label}
+        </label>
       </div>
-      <input
-        className="auth-field__input"
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={`Search ${label.toLowerCase()}`}
-        value={query}
-      />
-      <div className="candidate-profile-search-picker__results">
-        {results.map((option) => (
+      <div className="application-location-field__control" data-picker-open={isOpen ? "country" : "closed"}>
+        <button
+          aria-controls={isOpen ? listboxId : undefined}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          className="auth-field__input application-location-field__input candidate-profile-nationality-field__input candidate-profile-nationality-field__trigger"
+          data-placeholder={!value ? "true" : "false"}
+          id={fieldId}
+          onClick={openPanel}
+          onKeyDown={handleTriggerKeyDown}
+          ref={triggerRef}
+          role="combobox"
+          type="button"
+        >
+          <span className="candidate-profile-nationality-field__selected">
+            {value ? `${value.flag} ${value.nationality}` : `Select ${label.toLowerCase()}`}
+          </span>
+        </button>
+
+        {value ? (
           <button
-            key={option.countryCode}
+            aria-label={`Clear ${label.toLowerCase()}`}
+            className="candidate-profile-nationality-field__clear"
             onClick={() => {
-              onChange({
-                countryCode: option.countryCode,
-                flag: option.flag,
-                nationality: option.nationality
-              });
+              onChange(null);
               setQuery("");
+              setIsOpen(false);
+              window.setTimeout(() => triggerRef.current?.focus(), 0);
             }}
             type="button"
           >
-            <span>{option.flag}</span>
-            {option.nationality}
+            <X aria-hidden="true" />
           </button>
-        ))}
+        ) : null}
+
+        <button
+          aria-label={`${value ? `Selected ${value.nationality}` : `Choose ${label.toLowerCase()}`}`}
+          aria-controls={isOpen ? listboxId : undefined}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          className="application-location-field__country-trigger"
+          onClick={() => {
+            const nextOpenState = !isOpen;
+            setQuery("");
+
+            if (nextOpenState) {
+              openPanel();
+            } else {
+              closePanel();
+              window.setTimeout(() => triggerRef.current?.focus(), 0);
+            }
+          }}
+          type="button"
+        >
+          <span aria-hidden="true" className="application-location-field__country-flag">
+            {value?.flag ?? "🌐"}
+          </span>
+        </button>
+
+        {isOpen ? (
+          <div
+            aria-label={`Choose ${label.toLowerCase()}`}
+            className="application-location-field__panel application-location-field__panel--countries"
+            data-panel-state={results.length > 0 ? "results" : "empty"}
+            role="dialog"
+          >
+            <input
+              aria-activedescendant={activeDescendantId}
+              aria-controls={listboxId}
+              aria-expanded={isOpen}
+              autoComplete="off"
+              className="auth-field__input application-location-field__country-search"
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={`Search ${label.toLowerCase()}`}
+              ref={searchInputRef}
+              role="combobox"
+              type="text"
+              value={query}
+            />
+
+            {results.length > 0 ? (
+              <ul
+                className="application-location-field__results application-location-field__results--countries"
+                id={listboxId}
+                role="listbox"
+              >
+                {results.map((option, index) => (
+                  <li
+                    aria-selected={option.countryCode === value?.countryCode}
+                    className="application-location-field__result application-location-field__result--country"
+                    data-active={index === activeIndex ? "true" : "false"}
+                    data-selected={option.countryCode === value?.countryCode ? "true" : "false"}
+                    id={`${fieldId}-option-${option.countryCode}`}
+                    key={option.countryCode}
+                    onClick={() => commitOption(option)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    role="option"
+                    tabIndex={-1}
+                  >
+                    <div className="application-location-field__result-copy">
+                      <strong>{option.nationality}</strong>
+                      <span>{option.countryName}</span>
+                    </div>
+                    <span aria-hidden="true" className="application-location-field__result-flag">
+                      {option.flag}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="application-location-field__empty-state">
+                <strong>No nationality matches found</strong>
+                <span>Try a different country or nationality name.</span>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -2163,47 +2966,480 @@ function ProfileFilesSection({
   );
 }
 
-function ProfileGuard({
-  backgroundMode,
-  onBackgroundModeChange
-}: {
-  backgroundMode: ProfileBackgroundMode;
-  onBackgroundModeChange: (mode: ProfileBackgroundMode) => void;
-}): JSX.Element {
+function ProfileGuard(): JSX.Element {
   return (
-    <div className="candidate-profile-page" data-profile-background={backgroundMode}>
-      <span aria-hidden="true" className="candidate-profile-bg-debug__shimmer" />
-      <ProfileBackgroundToggle mode={backgroundMode} onChange={onBackgroundModeChange} />
+    <div className="candidate-profile-page" data-profile-background="current">
       <section className="candidate-profile-guard surface-card">
         <p className="section-kicker">Candidate profile</p>
         <h1>Sign in to view your profile</h1>
-        <p>Manage your details, files, and career history from one place.</p>
-        <TransitionLink
-          className="button button--job-primary"
-          href={buildApplicationAuthPath(REFERENCE_JOB_ID, "signin")}
-          source="profile-signin"
-        >
-          Sign in
-        </TransitionLink>
+        <p>Your profile is private. Sign in to review your details, experience, and application information.</p>
+        <div className="application-step__guard-actions">
+          <TransitionLink
+            className="button button--job-primary"
+            href={buildGlobalAuthPath("signin", { next: buildCandidateProfilePath() })}
+            source="profile-signin"
+          >
+            Sign in
+          </TransitionLink>
+          <TransitionLink
+            className="button button--ghost"
+            href={buildJobSearchPath()}
+            source="profile-search-jobs"
+          >
+            Search jobs
+          </TransitionLink>
+        </div>
       </section>
     </div>
   );
 }
 
-export function CandidateProfilePage(): JSX.Element {
-  const session = useMemo(() => readPrototypeSession(), []);
-  const [profileBackgroundMode, setProfileBackgroundMode] = useState<ProfileBackgroundMode>(
-    readInitialProfileBackgroundMode
+function CandidateProfileSettingsTab({ email }: { email: string }): JSX.Element {
+  const passwordPanelId = useId();
+  const closeAccountPanelId = useId();
+  const closeProgressFrameRef = useRef<number | null>(null);
+  const [passwordValues, setPasswordValues] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [closeValues, setCloseValues] = useState({
+    password: "",
+    confirmationPhrase: ""
+  });
+  const [closeErrors, setCloseErrors] = useState<Record<string, string>>({});
+  const [isCloseConfirmationVisible, setIsCloseConfirmationVisible] = useState(false);
+  const [isClosingAccount, setIsClosingAccount] = useState(false);
+  const [closeAccountModalState, setCloseAccountModalState] = useState<"confirming" | "closing" | "closed">(
+    "confirming"
   );
+  const [closeAccountProgress, setCloseAccountProgress] = useState(0);
+  const [openSettingsPanel, setOpenSettingsPanel] = useState<"password" | "close-account" | null>(null);
+  const emailAddress = email.trim();
+  const isPasswordPanelOpen = openSettingsPanel === "password";
+  const isCloseAccountPanelOpen = openSettingsPanel === "close-account";
+
+  useEffect(() => {
+    return () => {
+      if (closeProgressFrameRef.current !== null) {
+        window.cancelAnimationFrame(closeProgressFrameRef.current);
+      }
+    };
+  }, []);
+
+  const updatePasswordValue = (field: keyof typeof passwordValues, value: string): void => {
+    setPasswordValues((current) => ({ ...current, [field]: value }));
+    setPasswordErrors((current) => ({ ...current, [field]: "" }));
+    setPasswordSuccess("");
+  };
+
+  const updateCloseValue = (field: keyof typeof closeValues, value: string): void => {
+    setCloseValues((current) => ({ ...current, [field]: value }));
+    setCloseErrors((current) => ({ ...current, [field]: "" }));
+    setIsCloseConfirmationVisible(false);
+  };
+
+  const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+
+    const nextErrors: Record<string, string> = {};
+
+    if (!passwordValues.currentPassword.trim()) {
+      nextErrors.currentPassword = "Enter your current password.";
+    }
+
+    if (!passwordValues.newPassword) {
+      nextErrors.newPassword = "Enter a new password.";
+    } else if (passwordValues.newPassword.length < 8) {
+      nextErrors.newPassword = "Use at least 8 characters.";
+    } else if (passwordValues.currentPassword && passwordValues.newPassword === passwordValues.currentPassword) {
+      nextErrors.newPassword = "Your new password must be different from your current password.";
+    }
+
+    if (!passwordValues.confirmPassword) {
+      nextErrors.confirmPassword = "Confirm your new password.";
+    } else if (passwordValues.confirmPassword !== passwordValues.newPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setPasswordErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setPasswordSuccess("");
+      return;
+    }
+
+    // TODO: validate and persist password changes through backend auth when it exists.
+    setPasswordValues({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: ""
+    });
+    setPasswordSuccess("Your password has been updated.");
+  };
+
+  const handleSignOut = (): void => {
+    clearPrototypeSession();
+    navigateTo("/", { replace: true });
+  };
+
+  const toggleSettingsPanel = (panel: "password" | "close-account"): void => {
+    setOpenSettingsPanel((current) => (current === panel ? null : panel));
+
+    if (panel !== "close-account") {
+      setIsCloseConfirmationVisible(false);
+    }
+  };
+
+  const handleCloseAccountSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+
+    const nextErrors: Record<string, string> = {};
+
+    if (!closeValues.password.trim()) {
+      nextErrors.password = "Enter your password.";
+    }
+
+    if (closeValues.confirmationPhrase !== "CLOSE") {
+      nextErrors.confirmationPhrase = "Type CLOSE to confirm.";
+    }
+
+    setCloseErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setIsCloseConfirmationVisible(false);
+      return;
+    }
+
+    setCloseAccountModalState("confirming");
+    setCloseAccountProgress(0);
+    setIsCloseConfirmationVisible(true);
+  };
+
+  const handleCloseAccountConfirmed = async (): Promise<void> => {
+    if (!emailAddress || isClosingAccount) {
+      return;
+    }
+
+    if (closeProgressFrameRef.current !== null) {
+      window.cancelAnimationFrame(closeProgressFrameRef.current);
+      closeProgressFrameRef.current = null;
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduceMotion ? 120 : 1500;
+    const startedAt = window.performance.now();
+    let isAccountCleared = false;
+    let isProgressComplete = false;
+
+    setIsClosingAccount(true);
+    setCloseAccountModalState("closing");
+    setCloseAccountProgress(0);
+
+    const finishIfReady = (): void => {
+      if (!isAccountCleared || !isProgressComplete) {
+        return;
+      }
+
+      setCloseAccountProgress(100);
+      setCloseAccountModalState("closed");
+      setIsClosingAccount(false);
+    };
+
+    void clearPrototypeAccountData(emailAddress)
+      .catch(() => undefined)
+      .then(() => {
+        isAccountCleared = true;
+        finishIfReady();
+      });
+
+    const animateProgress = (timestamp: number): void => {
+      const progress = Math.min(100, Math.round(((timestamp - startedAt) / duration) * 100));
+      setCloseAccountProgress(progress);
+
+      if (progress >= 100) {
+        isProgressComplete = true;
+        finishIfReady();
+        return;
+      }
+
+      closeProgressFrameRef.current = window.requestAnimationFrame(animateProgress);
+    };
+
+    closeProgressFrameRef.current = window.requestAnimationFrame(animateProgress);
+  };
+
+  const closeAccountSuccessAndGoHome = (): void => {
+    navigateTo("/", { replace: true });
+  };
+
+  const closeAccountProgressStyle = {
+    "--close-account-progress": `${closeAccountProgress}%`
+  } as CSSProperties;
+
+  return (
+    <section className="candidate-profile-section candidate-profile-section--settings surface-card">
+      <div className="candidate-profile-settings">
+        <div className="candidate-profile-settings__header">
+          <p className="section-kicker">Account settings</p>
+          <h2>Profile settings</h2>
+        </div>
+
+        <section className="candidate-profile-settings-card">
+          <div>
+            <h3>Email address</h3>
+            <p>This email address is used to sign in to your Ditto profile.</p>
+          </div>
+          <div className="candidate-profile-settings-readonly-value">
+            {emailAddress || "No email address available"}
+          </div>
+        </section>
+
+        <section className="candidate-profile-settings-card candidate-profile-settings-card--disclosure">
+          <button
+            aria-controls={passwordPanelId}
+            aria-expanded={isPasswordPanelOpen}
+            className="candidate-profile-settings-disclosure"
+            onClick={() => toggleSettingsPanel("password")}
+            type="button"
+          >
+            <span>
+              <strong>Change password</strong>
+              <small>Update the password used to sign in to your Ditto profile.</small>
+            </span>
+            <ChevronDown aria-hidden="true" />
+          </button>
+
+          {isPasswordPanelOpen ? (
+            <form
+              className="candidate-profile-settings-form"
+              id={passwordPanelId}
+              onSubmit={handlePasswordSubmit}
+            >
+              <div className="candidate-profile-settings-form__password-row">
+                <AuthPasswordField
+                  autoComplete="current-password"
+                  error={passwordErrors.currentPassword}
+                  label="Current password"
+                  name="currentPassword"
+                  onChange={(value) => updatePasswordValue("currentPassword", value)}
+                  value={passwordValues.currentPassword}
+                />
+              </div>
+              <div className="candidate-profile-settings-form__password-row">
+                <AuthPasswordField
+                  autoComplete="new-password"
+                  error={passwordErrors.newPassword}
+                  label="New password"
+                  name="newPassword"
+                  onChange={(value) => updatePasswordValue("newPassword", value)}
+                  value={passwordValues.newPassword}
+                />
+                <AuthPasswordField
+                  autoComplete="new-password"
+                  error={passwordErrors.confirmPassword}
+                  label="Confirm new password"
+                  name="confirmPassword"
+                  onChange={(value) => updatePasswordValue("confirmPassword", value)}
+                  value={passwordValues.confirmPassword}
+                />
+              </div>
+              <div className="candidate-profile-settings-form__footer">
+                {passwordSuccess ? (
+                  <p className="candidate-profile-settings-success" role="status">
+                    {passwordSuccess}
+                  </p>
+                ) : null}
+                <button className="button button--primary" type="submit">
+                  Update password
+                </button>
+              </div>
+            </form>
+          ) : null}
+        </section>
+
+        <section className="candidate-profile-settings-card candidate-profile-settings-card--action-row">
+          <div>
+            <h3>Sign out</h3>
+            <p>Sign out of this browser session.</p>
+          </div>
+          <div className="candidate-profile-settings-actions">
+            <button className="button button--ghost" onClick={handleSignOut} type="button">
+              Sign out
+            </button>
+          </div>
+        </section>
+
+        <section className="candidate-profile-settings-card candidate-profile-settings-card--danger candidate-profile-settings-card--disclosure">
+          <button
+            aria-controls={closeAccountPanelId}
+            aria-expanded={isCloseAccountPanelOpen}
+            className="candidate-profile-settings-disclosure candidate-profile-settings-disclosure--danger"
+            onClick={() => toggleSettingsPanel("close-account")}
+            type="button"
+          >
+            <span>
+              <strong>Close account</strong>
+              <small>Permanently close your Ditto profile.</small>
+            </span>
+            <ChevronDown aria-hidden="true" />
+          </button>
+
+          {isCloseAccountPanelOpen ? (
+            <div className="candidate-profile-settings-disclosure-panel" id={closeAccountPanelId}>
+              <div className="candidate-profile-settings-danger-copy">
+                <p>
+                  This will permanently close your Ditto profile and remove your saved profile data.
+                </p>
+                <p className="candidate-profile-settings-warning">This action cannot be undone.</p>
+              </div>
+              <form className="candidate-profile-settings-form" onSubmit={handleCloseAccountSubmit}>
+                <div className="candidate-profile-settings-form__password-row">
+                  <AuthPasswordField
+                    autoComplete="current-password"
+                    error={closeErrors.password}
+                    label="Password"
+                    name="closeAccountPassword"
+                    onChange={(value) => updateCloseValue("password", value)}
+                    value={closeValues.password}
+                  />
+                  <TextField
+                    error={closeErrors.confirmationPhrase}
+                    label="Type CLOSE to confirm"
+                    onChange={(value) => updateCloseValue("confirmationPhrase", value)}
+                    value={closeValues.confirmationPhrase}
+                  />
+                </div>
+                <div className="candidate-profile-settings-form__footer">
+                  <button className="button button--destructive" type="submit">
+                    Close account
+                  </button>
+                </div>
+              </form>
+
+            </div>
+          ) : null}
+        </section>
+      </div>
+      {isCloseConfirmationVisible ? (
+        <ProfileDialogPortal>
+          <div
+            aria-describedby="close-account-confirm-description"
+            aria-labelledby="close-account-confirm-title"
+            aria-modal="true"
+            className="candidate-profile-dialog"
+            role="dialog"
+          >
+            <div className="candidate-profile-dialog__panel candidate-profile-dialog__panel--danger candidate-profile-dialog__panel--centered">
+              {closeAccountModalState === "closing" ? (
+                <div
+                  aria-label={`Closing account ${closeAccountProgress}% complete`}
+                  className="candidate-profile-dialog__progress"
+                  role="status"
+                  style={closeAccountProgressStyle}
+                >
+                  <span className="candidate-profile-dialog__progress-ring" />
+                  <span className="candidate-profile-dialog__danger-mark candidate-profile-dialog__danger-mark--centered candidate-profile-dialog__danger-mark--progress">
+                    <AlertTriangle aria-hidden="true" />
+                  </span>
+                </div>
+              ) : (
+                <span
+                  className={`candidate-profile-dialog__danger-mark candidate-profile-dialog__danger-mark--centered${
+                    closeAccountModalState === "closed" ? " candidate-profile-dialog__danger-mark--success" : ""
+                  }`}
+                >
+                  {closeAccountModalState === "closed" ? (
+                    <Check aria-hidden="true" />
+                  ) : (
+                    <AlertTriangle aria-hidden="true" />
+                  )}
+                </span>
+              )}
+              <div className="candidate-profile-dialog__center-copy">
+                <h3 id="close-account-confirm-title">
+                  {closeAccountModalState === "closed"
+                    ? "Your account has been closed."
+                    : closeAccountModalState === "closing"
+                      ? "Closing your account..."
+                      : "Close your account?"}
+                </h3>
+                <p id="close-account-confirm-description">
+                  {closeAccountModalState === "closed"
+                    ? "Your Ditto profile and saved application data have been removed from this browser prototype."
+                    : closeAccountModalState === "closing"
+                      ? "Removing your profile and saved application data from this browser prototype."
+                      : "Are you sure you want to close your account? Your profile and saved application data will be removed. This cannot be undone."}
+                </p>
+                {closeAccountModalState === "closing" ? (
+                  <span className="candidate-profile-dialog__progress-label">{closeAccountProgress}%</span>
+                ) : null}
+              </div>
+              <div className="candidate-profile-dialog__actions candidate-profile-dialog__actions--centered">
+                {closeAccountModalState === "confirming" ? (
+                  <>
+                    <button
+                      autoFocus
+                      className="button button--ghost"
+                      onClick={() => {
+                        setIsCloseConfirmationVisible(false);
+                        setCloseAccountProgress(0);
+                      }}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="button button--destructive"
+                      disabled={isClosingAccount}
+                      onClick={() => {
+                        void handleCloseAccountConfirmed();
+                      }}
+                      type="button"
+                    >
+                      Yes, close my account
+                    </button>
+                  </>
+                ) : closeAccountModalState === "closed" ? (
+                  <button
+                    autoFocus
+                    className="button button--primary"
+                    onClick={closeAccountSuccessAndGoHome}
+                    type="button"
+                  >
+                    Confirm
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </ProfileDialogPortal>
+      ) : null}
+    </section>
+  );
+}
+
+interface CandidateProfilePageProps {
+  initialTab?: ProfileTabId;
+}
+
+export function CandidateProfilePage({
+  initialTab = "about"
+}: CandidateProfilePageProps): JSX.Element {
+  const session = useMemo(() => readPrototypeSession(), []);
   const [profile, setProfile] = useState<CandidateProfileState | null>(() =>
     session ? buildPrototypeCandidateProfile(session) : null
   );
   const [draftProfile, setDraftProfile] = useState<CandidateProfileState | null>(profile);
   const [editingSection, setEditingSection] = useState<ProfileSectionId | null>(null);
-  const [activeTab, setActiveTab] = useState<ProfileTabId>("about");
+  const [activeTab, setActiveTab] = useState<ProfileTabId>(initialTab);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [savedSection, setSavedSection] = useState<ProfileSectionId | null>(null);
   const savedTimeoutRef = useRef<number | null>(null);
+  const profileTabsRef = useRef<HTMLElement | null>(null);
+  const shouldAlignProfileTabsRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -2213,23 +3449,23 @@ export function CandidateProfilePage(): JSX.Element {
     };
   }, []);
 
-  const updateProfileBackgroundMode = (nextMode: ProfileBackgroundMode): void => {
-    setProfileBackgroundMode(nextMode);
+  useEffect(() => {
+    setActiveTab(initialTab);
+    setEditingSection(null);
+    setErrors({});
+  }, [initialTab]);
 
-    try {
-      window.localStorage.setItem(PROFILE_BACKGROUND_STORAGE_KEY, nextMode);
-    } catch {
-      // Design QA preference only. Ignore storage failures.
+  useEffect(() => {
+    if (!shouldAlignProfileTabsRef.current && !consumeProfileTabScrollPending()) {
+      return;
     }
-  };
+
+    shouldAlignProfileTabsRef.current = false;
+    scrollProfileTabsToTop();
+  }, [activeTab]);
 
   if (!session || !profile || !draftProfile) {
-    return (
-      <ProfileGuard
-        backgroundMode={profileBackgroundMode}
-        onBackgroundModeChange={updateProfileBackgroundMode}
-      />
-    );
+    return <ProfileGuard />;
   }
 
   const isDirty = JSON.stringify(profile) !== JSON.stringify(draftProfile);
@@ -2291,10 +3527,39 @@ export function CandidateProfilePage(): JSX.Element {
     setDraftProfile(nextProfile);
   };
 
+  const scrollProfileTabsToTop = (): void => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const tabs = profileTabsRef.current;
+
+        if (!tabs) {
+          return;
+        }
+
+        tabs.scrollIntoView({
+          block: "start",
+          inline: "nearest",
+          behavior: "auto"
+        });
+      });
+    });
+  };
+
+  const navigateToProfileTab = (tabId: ProfileTabId): void => {
+    shouldAlignProfileTabsRef.current = true;
+    markProfileTabScrollPending();
+    navigateTo(buildCandidateProfilePath(tabId));
+    setEditingSection(null);
+    setErrors({});
+
+    if (tabId === activeTab) {
+      shouldAlignProfileTabsRef.current = false;
+      scrollProfileTabsToTop();
+    }
+  };
+
   return (
-    <div className="candidate-profile-page" data-profile-background={profileBackgroundMode}>
-      <span aria-hidden="true" className="candidate-profile-bg-debug__shimmer" />
-      <ProfileBackgroundToggle mode={profileBackgroundMode} onChange={updateProfileBackgroundMode} />
+    <div className="candidate-profile-page" data-profile-background="current">
       <div className="candidate-profile-shell">
         <CandidateProfileHeader
           onAvatarChange={(profilePicture) =>
@@ -2311,16 +3576,13 @@ export function CandidateProfilePage(): JSX.Element {
               updatedAt: new Date().toISOString()
             }))
           }
-          onOpenAbout={() => {
-            setActiveTab("about");
-            beginEdit("about");
-          }}
           profile={profile}
         />
 
         <nav
           className="candidate-profile-tabs surface-card"
           aria-label="Candidate profile sections"
+          ref={profileTabsRef}
           role="tablist"
         >
           {PROFILE_TABS.map((tab) => (
@@ -2329,9 +3591,7 @@ export function CandidateProfilePage(): JSX.Element {
               className={activeTab === tab.id ? "is-active" : ""}
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id);
-                setEditingSection(null);
-                setErrors({});
+                navigateToProfileTab(tab.id);
               }}
               role="tab"
               type="button"
@@ -2349,7 +3609,7 @@ export function CandidateProfilePage(): JSX.Element {
             aria-label={activeTabMeta.label}
           >
             {activeTab === "about" ? (
-              <>
+              <div className="candidate-profile-about-tab">
                 <CandidateProfileCompletionPrompt profile={profile} />
 
                 <div className="candidate-profile-about-grid">
@@ -2441,7 +3701,7 @@ export function CandidateProfilePage(): JSX.Element {
                     </EditableProfileSection>
                   </div>
 
-                  <aside className="candidate-profile-about-grid__details" aria-label="Hiring details">
+                  <aside className="candidate-profile-about-grid__details" aria-label="Hiring preferences">
                     <EditableProfileSection
                       editingSection={editingSection}
                       id="contact"
@@ -2523,7 +3783,7 @@ export function CandidateProfilePage(): JSX.Element {
                       onEdit={beginEdit}
                       onSave={saveSection}
                       savedSection={savedSection}
-                      title="Hiring Details"
+                      title="Hiring Preferences"
                       variant="panel"
                     >
                       {editingSection === "work" ? (
@@ -2535,26 +3795,41 @@ export function CandidateProfilePage(): JSX.Element {
                             }
                             value={draftProfile.willingToRelocate}
                           />
-                          <SelectField
+                          <NoticePeriodSelect
                             label="Notice period"
                             onChange={(noticePeriod) =>
                               updateDraft((current) => ({
                                 ...current,
-                                noticePeriod: noticePeriod as CandidateNoticePeriod
+                                noticePeriod
                               }))
                             }
                             value={draftProfile.noticePeriod}
-                          >
-                            {NOTICE_PERIOD_OPTIONS.map((noticePeriod) => (
-                              <option key={noticePeriod || "empty"} value={noticePeriod}>
-                                {noticePeriod || "Select notice period"}
-                              </option>
-                            ))}
-                          </SelectField>
+                          />
                           <YesNoControl
                             label="Own transport"
                             onChange={(ownTransport) => updateDraft((current) => ({ ...current, ownTransport }))}
                             value={draftProfile.ownTransport}
+                          />
+                          <MoneyInput
+                            amountError={errors.currentRemunerationAmount}
+                            currencyError={errors.currentRemunerationCurrency}
+                            helper="What you currently earn monthly."
+                            label="Current Compensation"
+                            onChange={(currentRemuneration) =>
+                              updateDraft((current) => ({ ...current, currentRemuneration }))
+                            }
+                            value={draftProfile.currentRemuneration}
+                          />
+                          <MoneyInput
+                            amountError={errors.desiredRemunerationAmount}
+                            currencyError={errors.desiredRemunerationCurrency}
+                            helper="What you would like to earn monthly."
+                            label="Desired Compensation"
+                            onChange={(desiredRemuneration) =>
+                              updateDraft((current) => ({ ...current, desiredRemuneration }))
+                            }
+                            tone="emphasis"
+                            value={draftProfile.desiredRemuneration}
                           />
                         </div>
                       ) : (
@@ -2580,53 +3855,19 @@ export function CandidateProfilePage(): JSX.Element {
                                 formatBooleanValue(displayProfile.ownTransport) ?? (
                                   <span className="candidate-profile-muted-value">Not added</span>
                                 )
+                            },
+                            {
+                              label: "Current Compensation",
+                              value: formatMoneyValue(displayProfile.currentRemuneration) || (
+                                <span className="candidate-profile-muted-value">Not added</span>
+                              )
+                            },
+                            {
+                              label: "Desired Compensation",
+                              value: formatMoneyValue(displayProfile.desiredRemuneration) || (
+                                <span className="candidate-profile-muted-value">Not added</span>
+                              )
                             }
-                          ]}
-                        />
-                      )}
-                    </EditableProfileSection>
-
-                    <EditableProfileSection
-                      editingSection={editingSection}
-                      id="remuneration"
-                      isDirty={isDirty}
-                      onCancel={cancelEdit}
-                      onEdit={beginEdit}
-                      onSave={saveSection}
-                      savedSection={savedSection}
-                      title="Compensation"
-                      variant="panel"
-                    >
-                      {editingSection === "remuneration" ? (
-                        <div className="candidate-profile-remuneration-editor">
-                          <MoneyInput
-                            amountError={errors.currentRemunerationAmount}
-                            currencyError={errors.currentRemunerationCurrency}
-                            helper="What you currently earn monthly."
-                            label="Current remuneration"
-                            onChange={(currentRemuneration) =>
-                              updateDraft((current) => ({ ...current, currentRemuneration }))
-                            }
-                            value={draftProfile.currentRemuneration}
-                          />
-                          <MoneyInput
-                            amountError={errors.desiredRemunerationAmount}
-                            currencyError={errors.desiredRemunerationCurrency}
-                            helper="What you would like to earn monthly."
-                            label="Desired remuneration"
-                            onChange={(desiredRemuneration) =>
-                              updateDraft((current) => ({ ...current, desiredRemuneration }))
-                            }
-                            tone="emphasis"
-                            value={draftProfile.desiredRemuneration}
-                          />
-                        </div>
-                      ) : (
-                        <ProfileDetailRows
-                          empty="Not shared yet"
-                          rows={[
-                            { label: "Current", value: formatMoneyValue(displayProfile.currentRemuneration) },
-                            { label: "Desired", value: formatMoneyValue(displayProfile.desiredRemuneration) }
                           ]}
                         />
                       )}
@@ -2645,10 +3886,10 @@ export function CandidateProfilePage(): JSX.Element {
                     >
                       {editingSection === "personal" ? (
                         <div className="candidate-profile-form-grid">
-                          <TextField
+                          <DateOfBirthField
+                            error={errors.dateOfBirth}
                             label="Date of Birth"
                             onChange={(dateOfBirth) => updateDraft((current) => ({ ...current, dateOfBirth }))}
-                            type="date"
                             value={draftProfile.dateOfBirth}
                           />
                           <NationalitySelect
@@ -2690,7 +3931,7 @@ export function CandidateProfilePage(): JSX.Element {
                     </EditableProfileSection>
                   </aside>
                 </div>
-              </>
+              </div>
             ) : null}
 
             {activeTab === "experience" ? (
@@ -2716,6 +3957,10 @@ export function CandidateProfilePage(): JSX.Element {
                 onChange={(files) => updateImmediate((current) => ({ ...current, files }))}
                 session={session}
               />
+            ) : null}
+
+            {activeTab === "settings" ? (
+              <CandidateProfileSettingsTab email={session.email} />
             ) : null}
           </main>
         </div>

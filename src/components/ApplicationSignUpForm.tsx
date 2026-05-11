@@ -9,7 +9,7 @@ import {
 } from "./ApplicationAuthPrimitives";
 
 interface ApplicationSignUpFormProps {
-  job: JobViewData;
+  job?: JobViewData;
   onAuthSuccess: (input: {
     email: string;
     firstName?: string;
@@ -109,7 +109,9 @@ export function ApplicationSignUpForm({
       <div className="auth-card__header">
         <h2>Create your account</h2>
         <p>
-          Create an account to continue your application to {job.title} at {job.companyName}.
+          {job
+            ? `Create an account to continue your application to ${job.title} at ${job.companyName}.`
+            : "Create your candidate profile and keep your applications moving."}
         </p>
       </div>
 

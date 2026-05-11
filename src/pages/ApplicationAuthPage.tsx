@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { getJobView, readJobView } from "../api/jobs";
+import { ApplicationUnavailableState } from "../components/ApplicationGuardStates";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
-import { buildPrototypeSession, savePrototypeSession } from "../lib/prototype-auth";
+import { getNextApplicationPath } from "../lib/applicationGuards";
+import { buildPrototypeSession, readPrototypeSession, savePrototypeSession } from "../lib/prototype-auth";
 import {
   buildApplicationAuthPath,
   buildApplicationUploadPath,
+  getSafeAuthNextPath,
+  isCanonicalAuthMode,
   navigateTo
 } from "../lib/router";
 import type { ApplicationAuthMode, AuthProvider } from "../contracts/application";
@@ -42,19 +46,25 @@ function LoadingState(): JSX.Element {
 
 function MissingState(): JSX.Element {
   return (
-    <div className="job-view__shell">
-      <section className="job-view__stack">
-        <div className="surface-card surface-card--section">
-          <p className="section-kicker">Unavailable</p>
-          <h1>Application not available</h1>
-          <p className="muted-copy">
-            We couldn’t resolve the role you were trying to apply to. Return to the job
-            view and try again.
-          </p>
-        </div>
-      </section>
-    </div>
+    <ApplicationUnavailableState
+      copy="The role may have moved, expired, or is no longer available."
+      title="Application not available"
+    />
   );
+}
+
+function resolveSafeAuthDestination(jobId: string): string {
+  const safeNext = getSafeAuthNextPath(window.location.search);
+
+  if (!safeNext) {
+    return getNextApplicationPath(jobId);
+  }
+
+  if (safeNext.startsWith(`/jobs/${jobId}/apply/`)) {
+    return getNextApplicationPath(jobId);
+  }
+
+  return safeNext;
 }
 
 function ReadyState({
@@ -72,6 +82,35 @@ function ReadyState({
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    if (isCanonicalAuthMode(window.location.search)) {
+      return;
+    }
+
+    navigateTo(
+      buildApplicationAuthPath(jobId, initialMode, {
+        next: getSafeAuthNextPath(window.location.search)
+      }),
+      { replace: true }
+    );
+  }, [initialMode, jobId]);
+
+  useEffect(() => {
+    if (initialMode !== "signin" && initialMode !== "signup") {
+      return;
+    }
+
+    if (!readPrototypeSession()) {
+      return;
+    }
+
+    transitionTo(resolveSafeAuthDestination(job.id), {
+      direction: "forward",
+      replace: true,
+      source: "guard-recovery"
+    });
+  }, [initialMode, job.id, transitionTo]);
 
   useEffect(() => {
     const handlePopState = (): void => {
@@ -97,13 +136,17 @@ function ReadyState({
 
   const updateMode = (nextMode: ApplicationAuthMode): void => {
     setMode(nextMode);
-    navigateTo(buildApplicationAuthPath(jobId, nextMode));
+    navigateTo(
+      buildApplicationAuthPath(jobId, nextMode, {
+        next: getSafeAuthNextPath(window.location.search)
+      })
+    );
   };
 
   const handleAuthSuccess = async (input: AuthSuccessInput): Promise<void> => {
     const session = buildPrototypeSession(input);
     savePrototypeSession(session);
-    transitionTo(buildApplicationUploadPath(jobId), {
+    transitionTo(resolveSafeAuthDestination(jobId), {
       direction: "forward",
       source: "auth-complete"
     });

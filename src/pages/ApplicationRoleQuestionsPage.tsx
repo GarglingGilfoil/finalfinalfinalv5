@@ -1,17 +1,21 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { getJobView, readJobView } from "../api/jobs";
+import { ApplicationUnavailableState } from "../components/ApplicationGuardStates";
 import { ApplicationStepShell } from "../components/ApplicationStepShell";
 import { TransitionLink } from "../components/application/TransitionLink";
 import { CompanyApplicationHeading } from "../components/ResumeUploadSection";
 import { useApplicationRouteTransition } from "../hooks/useApplicationRouteTransition";
+import {
+  getSelectedResumeForApplication,
+  readPrototypeApplicationRecord
+} from "../lib/prototype-application";
 import type {
   ApplicationQualifier,
   CandidatePersonalDetailsState,
   CandidateResumeState,
   CandidateRoleQuestionsState,
-  CandidateSession,
-  PrototypeResumeRecord
+  CandidateSession
 } from "../contracts/application";
 import type { JobViewData } from "../contracts/job-view";
 import { readPrototypeSession } from "../lib/prototype-auth";
@@ -26,6 +30,7 @@ import {
 import {
   buildApplicationAuthPath,
   buildApplicationCareerHistoryPath,
+  buildApplicationConfirmPath,
   buildApplicationPersonalDetailsPath,
   buildApplicationUploadPath,
   buildJobViewPath,
@@ -82,14 +87,6 @@ function usePrefersReducedMotion(): boolean {
   }, []);
 
   return reducedMotion;
-}
-
-function getSelectedResume(resumeState: CandidateResumeState | null): PrototypeResumeRecord | null {
-  return (
-    resumeState?.resumes.find((resume) => resume.id === resumeState.selectedResumeId) ??
-    resumeState?.resumes[0] ??
-    null
-  );
 }
 
 function validateRoleQuestion(question: ApplicationQualifier, rawValue: string | undefined): string | undefined {
@@ -152,16 +149,7 @@ function LoadingState(): JSX.Element {
 }
 
 function MissingState(): JSX.Element {
-  return (
-    <div className="job-view__shell">
-      <ApplicationStepShell ambientMode="quiet">
-        <section className="application-step__panel application-step__guard surface-card surface-card--section">
-          <h1>Application step not available</h1>
-          <p className="muted-copy">We couldn’t resolve the role for this step.</p>
-        </section>
-      </ApplicationStepShell>
-    </div>
-  );
+  return <ApplicationUnavailableState />;
 }
 
 function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
@@ -174,7 +162,9 @@ function SessionGuard({ job }: { job: JobViewData }): JSX.Element {
           <div className="application-step__guard-actions">
             <TransitionLink
               className="button button--job-primary"
-              href={buildApplicationAuthPath(job.id, "signin")}
+              href={buildApplicationAuthPath(job.id, "signin", {
+                next: `${window.location.pathname}${window.location.search}`
+              })}
               source="guard-recovery"
             >
               Go to application sign in
@@ -526,7 +516,14 @@ function ReadyState({
   const formId = useId();
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const fieldRefs = useRef<Record<string, RoleQuestionControl | null>>({});
-  const selectedResume = useMemo(() => getSelectedResume(resumeState), [resumeState]);
+  const applicationRecord = useMemo(
+    () => (session ? readPrototypeApplicationRecord(session, job.id) : null),
+    [job.id, session]
+  );
+  const selectedResume = useMemo(
+    () => getSelectedResumeForApplication(resumeState, applicationRecord),
+    [applicationRecord, resumeState]
+  );
   const handoffState = useMemo(() => readNavigationState<RoleQuestionsHandoffPayload>(), []);
   const personalDetailsState = useMemo<CandidatePersonalDetailsState | null>(
     () => (session ? readPrototypePersonalDetailsState(session, job.id) : null),
@@ -544,6 +541,29 @@ function ReadyState({
       : "settled"
   );
   const arrivalTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    if (applicationRecord?.enrichmentCompletedAt) {
+      transitionTo(buildApplicationConfirmPath(job.id), {
+        direction: "forward",
+        replace: true,
+        source: "guard-recovery"
+      });
+      return;
+    }
+
+    if (!applicationRecord) {
+      transitionTo(buildApplicationUploadPath(job.id), {
+        direction: "back",
+        replace: true,
+        source: "guard-recovery"
+      });
+    }
+  }, [applicationRecord, job.id, session, transitionTo]);
 
   useEffect(() => {
     if (!session || !selectedResume) {
@@ -618,7 +638,7 @@ function ReadyState({
     return <SessionGuard job={job} />;
   }
 
-  if (!selectedResume) {
+  if (!applicationRecord || !selectedResume) {
     return <MissingResumeState job={job} />;
   }
 
