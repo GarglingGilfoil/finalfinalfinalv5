@@ -11,6 +11,7 @@ import { GlobalAuthPage } from "../pages/GlobalAuthPage";
 import { HomePage } from "../pages/HomePage";
 import { JobViewPage } from "../pages/JobViewPage";
 import { SearchResultsPage } from "../pages/SearchResultsPage";
+import { TermsPage } from "../pages/TermsPage";
 import {
   ApplicationRouteTransition,
   ApplicationRouteTransitionProvider
@@ -128,6 +129,9 @@ export function App(): JSX.Element {
         break;
       case "job-search":
         content = <SearchResultsPage />;
+        break;
+      case "terms":
+        content = <TermsPage />;
         break;
       case "job-view":
         content = (

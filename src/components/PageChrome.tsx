@@ -303,7 +303,9 @@ export function PageChromeFooter(): JSX.Element {
         </p>
 
         <nav aria-label="Legal links" className="site-footer__links">
-          <a href="https://www.ditto.jobs/legal/terms">Terms of Service</a>
+          <TransitionLink href="/terms" source="footer-terms">
+            Terms of Service
+          </TransitionLink>
           <a href="https://www.ditto.jobs/legal/privacy">Privacy Policy</a>
         </nav>
       </div>

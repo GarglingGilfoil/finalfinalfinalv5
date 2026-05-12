@@ -21,9 +21,13 @@ export interface JobSearchRoute {
   kind: "job-search";
 }
 
+export interface TermsRoute {
+  kind: "terms";
+}
+
 export interface GlobalAuthRoute {
   kind: "global-auth";
-  mode: "signin" | "signup";
+  mode: "signin" | "signup" | "forgot-password";
 }
 
 export interface ApplicationAuthRoute {
@@ -75,6 +79,7 @@ export type AppRoute =
   | HomeRoute
   | JobViewRoute
   | JobSearchRoute
+  | TermsRoute
   | GlobalAuthRoute
   | ApplicationAuthRoute
   | ApplicationUploadRoute
@@ -137,7 +142,7 @@ export function parseAuthMode(search: string): ApplicationAuthMode {
 
 export function parseGlobalAuthMode(search: string): GlobalAuthRoute["mode"] {
   const mode = new URLSearchParams(search).get("mode");
-  return mode === "signup" ? "signup" : "signin";
+  return mode === "signup" || mode === "forgot-password" ? mode : "signin";
 }
 
 export function isCanonicalAuthMode(search: string): boolean {
@@ -147,7 +152,7 @@ export function isCanonicalAuthMode(search: string): boolean {
 
 export function isCanonicalGlobalAuthMode(search: string): boolean {
   const mode = new URLSearchParams(search).get("mode");
-  return mode === "signin" || mode === "signup";
+  return mode === "signin" || mode === "signup" || mode === "forgot-password";
 }
 
 export function getSafeAuthNextPath(search: string): string | null {
@@ -381,6 +386,12 @@ export function resolveRoute(location: Pick<Location, "pathname" | "search">): A
     return {
       kind: "global-auth",
       mode: parseGlobalAuthMode(location.search)
+    };
+  }
+
+  if (trimmedPath === "/terms") {
+    return {
+      kind: "terms"
     };
   }
 

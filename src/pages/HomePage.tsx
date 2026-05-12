@@ -41,6 +41,7 @@ import type {
 } from "../contracts/application";
 
 type HomeTabId = "search" | "smart-match" | "upload-cv";
+type HomeVariant = "home-1" | "home-2";
 
 interface HomeTab {
   description: string;
@@ -56,6 +57,7 @@ interface AuthGateState {
 
 const SMART_MATCH_CHARACTER_LIMIT = 2000;
 const SMART_MATCH_ROUTE_INTENT_LIMIT = 160;
+const HOME_VARIANT_STORAGE_KEY = "ditto-jobs.home-variant";
 const HOME_GUEST_SESSION: CandidateSession = {
   authenticated: true,
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -95,16 +97,16 @@ const HOME_PANEL_COPY: Record<
   }
 > = {
   search: {
-    title: "Search directly",
-    description: "Know what you’re looking for? Enter a role, skill, or company, choose your location, and Ditto will show matching jobs immediately. Best for quick searches when you already have a title or keyword in mind."
+    title: "Search jobs",
+    description: "Search by role, skill, company, or location."
   },
   "smart-match": {
-    title: "Describe your ideal role",
-    description: "Tell Ditto what you want in plain language. Add your experience, skills, preferred location, industry, and work setup, and we’ll turn it into a smarter job search for you."
+    title: "Describe what fits",
+    description: "Tell Ditto what you want. We’ll shape the search."
   },
   "upload-cv": {
-    title: "Let your CV do the searching",
-    description: "Upload your CV and Ditto will read your experience, skills, and career history. We’ll use that context to match you with roles that fit what you’ve actually done."
+    title: "Match from your CV",
+    description: "Upload your CV and find roles that fit your experience."
   }
 };
 
@@ -130,6 +132,24 @@ const SMART_QUICK_CHIPS = [
     text: "My education includes "
   }
 ] as const;
+
+function readInitialHomeVariant(): HomeVariant {
+  if (typeof window === "undefined") {
+    return "home-1";
+  }
+
+  const queryVariant = new URLSearchParams(window.location.search).get("home");
+
+  if (queryVariant === "2" || queryVariant === "home-2") {
+    return "home-2";
+  }
+
+  if (queryVariant === "1" || queryVariant === "home-1") {
+    return "home-1";
+  }
+
+  return window.localStorage.getItem(HOME_VARIANT_STORAGE_KEY) === "home-2" ? "home-2" : "home-1";
+}
 
 function buildNewYorkFallbackLocation(): ApplicationLocationValue {
   const country = getLocationCountryByCode("US");
@@ -230,6 +250,7 @@ function HomeInlineAuthGate({
 export function HomePage(): JSX.Element {
   const { transitionTo } = useApplicationRouteTransition();
   const tabListId = useId();
+  const [homeVariant, setHomeVariant] = useState<HomeVariant>(() => readInitialHomeVariant());
   const [session, setSession] = useState(() => readPrototypeSession());
   const [activeTab, setActiveTab] = useState<HomeTabId>("search");
   const [jobTitle, setJobTitle] = useState("");
@@ -250,6 +271,24 @@ export function HomePage(): JSX.Element {
 
   const activeTabIndex = HOME_TABS.findIndex((tab) => tab.id === activeTab);
   const searchButtonLabel = "Search jobs";
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(HOME_VARIANT_STORAGE_KEY, homeVariant);
+
+    const nextUrl = new URL(window.location.href);
+
+    if (homeVariant === "home-2") {
+      nextUrl.searchParams.set("home", "2");
+    } else {
+      nextUrl.searchParams.delete("home");
+    }
+
+    window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+  }, [homeVariant]);
 
   useEffect(() => {
     const handleHomeAuthRequest = (event: Event): void => {
@@ -432,8 +471,66 @@ export function HomePage(): JSX.Element {
     }, 1180);
   }
 
+  const renderModeTabs = (railClassName: string, modeClassName: string): JSX.Element => (
+    <div
+      aria-label="Choose how to start your job search"
+      className={railClassName}
+      role="tablist"
+    >
+      {HOME_TABS.map((tab, index) => {
+        const Icon = tab.icon;
+        const isActive = tab.id === activeTab;
+
+        return (
+          <button
+            aria-controls={panelIds[tab.id]}
+            aria-selected={isActive}
+            aria-label={`${tab.label}: ${tab.description}`}
+            className={modeClassName}
+            id={`${tabListId}-${tab.id}-tab`}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={handleTabKeyDown}
+            ref={(node) => {
+              tabButtonRefs.current[index] = node;
+            }}
+            role="tab"
+            tabIndex={isActive ? 0 : -1}
+            type="button"
+          >
+            <Icon aria-hidden="true" />
+            <span>
+              <strong>{tab.label}</strong>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderVariantToggle = (): JSX.Element => (
+    <div className="home-variant-toggle" aria-label="Homepage variant">
+      {([
+        ["home-1", "Home 1"],
+        ["home-2", "Home 2"]
+      ] as const).map(([variant, label]) => (
+        <button
+          key={variant}
+          aria-pressed={homeVariant === variant}
+          className="home-variant-toggle__button"
+          onClick={() => setHomeVariant(variant)}
+          type="button"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="home-page">
+    <div className={`home-page ${homeVariant === "home-2" ? "home-page--variant-two" : "home-page--variant-one"}`}>
+      {renderVariantToggle()}
+      {homeVariant === "home-1" ? (
       <section className="home-hero" aria-labelledby="home-title">
         <span className="home-hero__shimmer" aria-hidden="true" />
         <div className="home-hero__copy">
@@ -449,40 +546,7 @@ export function HomePage(): JSX.Element {
         </div>
 
         <div className="home-search-card">
-          <div
-            aria-label="Choose how to start your job search"
-            className="home-search-rail"
-            role="tablist"
-          >
-            {HOME_TABS.map((tab, index) => {
-              const Icon = tab.icon;
-              const isActive = tab.id === activeTab;
-
-              return (
-                <button
-                  aria-controls={panelIds[tab.id]}
-                  aria-selected={isActive}
-                  aria-label={`${tab.label}: ${tab.description}`}
-                  className="home-search-mode"
-                  id={`${tabListId}-${tab.id}-tab`}
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  onKeyDown={handleTabKeyDown}
-                  ref={(node) => {
-                    tabButtonRefs.current[index] = node;
-                  }}
-                  role="tab"
-                  tabIndex={isActive ? 0 : -1}
-                  type="button"
-                >
-                  <Icon aria-hidden="true" />
-                  <span>
-                    <strong>{tab.label}</strong>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {renderModeTabs("home-search-rail", "home-search-mode")}
 
           <div className="home-search-content">
             <div
@@ -630,6 +694,169 @@ export function HomePage(): JSX.Element {
           </div>
         </div>
       </section>
+      ) : (
+        <section
+          className="home-two"
+          aria-labelledby="home-title"
+        >
+          <div className="home-two__background" aria-hidden="true">
+            <span className="home-two__glow home-two__glow--primary" />
+            <span className="home-two__glow home-two__glow--secondary" />
+            <span className="home-two__aurora home-two__aurora--one" />
+            <span className="home-two__aurora home-two__aurora--two" />
+            <span className="home-two__orbital-glow" />
+            <span className="home-two__grid" />
+          </div>
+
+          <div className="home-two__copy">
+            <h1 aria-label="Let’s get to work." id="home-title">
+              <span aria-hidden="true">Let’s get to work.</span>
+            </h1>
+            <p>
+              Start with a search, a sentence, or your CV.{" "}
+              <span className="home-hero__desktop-break">Ditto brings the right roles closer.</span>
+            </p>
+          </div>
+
+          <div className="home-two__instrument">
+            {renderModeTabs("home-two__segments", "home-two__segment")}
+
+            <div className="home-two__panels">
+              <div
+                aria-labelledby={`${tabListId}-search-tab`}
+                className="home-two__panel"
+                hidden={activeTab !== "search"}
+                id={panelIds.search}
+                role="tabpanel"
+              >
+                <form className="home-two__lens" onSubmit={submitSearch}>
+                  <label className="home-two__field home-two__field--role">
+                    <span>Role or keyword</span>
+                    <input
+                      autoComplete="off"
+                      onChange={(event) => setJobTitle(event.target.value)}
+                      placeholder="Role, skill, or company"
+                      type="search"
+                      value={jobTitle}
+                    />
+                  </label>
+
+                  <div className="home-two__divider" aria-hidden="true" />
+
+                  <div className="home-two__field home-two__field--location">
+                    <ApplicationLocationField
+                      cityPlaceholder="City or country"
+                      countrySearchPlaceholder="Search country"
+                      label="Location"
+                      onChange={setLocation}
+                      value={location}
+                    />
+                  </div>
+
+                  <button className="button button--primary home-two__submit" type="submit">
+                    Search
+                    <ArrowRight aria-hidden="true" />
+                  </button>
+                </form>
+              </div>
+
+              <div
+                aria-labelledby={`${tabListId}-smart-match-tab`}
+                className="home-two__panel"
+                hidden={activeTab !== "smart-match"}
+                id={panelIds["smart-match"]}
+                role="tabpanel"
+              >
+                <div className="home-two__natural-search">
+                  <label className="home-two__field home-two__field--natural">
+                    <span>Smart Match</span>
+                    <textarea
+                      maxLength={SMART_MATCH_CHARACTER_LIMIT}
+                      onChange={(event) => setSmartDescription(event.target.value)}
+                      placeholder="Describe the role you want, the stack you use, or where you want to work."
+                      rows={4}
+                      value={smartDescription}
+                    />
+                  </label>
+                  <div className="home-two__natural-footer">
+                    <span>{smartDescription.length}/{SMART_MATCH_CHARACTER_LIMIT}</span>
+                    <button
+                      className="button button--primary home-two__submit"
+                      disabled={smartLoading}
+                      onClick={runSmartMatch}
+                      type="button"
+                    >
+                      {smartLoading ? "Finding…" : "Find matches"}
+                      <ArrowRight aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div aria-label="Smart match writing helpers" className="home-two__chips">
+                  {SMART_QUICK_CHIPS.map((chip) => (
+                    <button
+                      key={chip.label}
+                      onClick={() =>
+                        setSmartDescription((currentValue) =>
+                          appendSmartTemplate(currentValue, chip.text)
+                        )
+                      }
+                      type="button"
+                    >
+                      {chip.label.replace("+ ", "")}
+                    </button>
+                  ))}
+                </div>
+
+                {authGate?.tab === "smart-match" ? (
+                  <HomeInlineAuthGate
+                    mode={authGate.mode}
+                    onComplete={completeMockAuth}
+                    onDismiss={() => setAuthGate(null)}
+                  />
+                ) : null}
+              </div>
+
+              <div
+                aria-labelledby={`${tabListId}-upload-cv-tab`}
+                className="home-two__panel"
+                hidden={activeTab !== "upload-cv"}
+                id={panelIds["upload-cv"]}
+                role="tabpanel"
+              >
+                <div className="home-two__upload">
+                  {homeJob ? (
+                    <ResumeUploadSection
+                      continueLabel={uploadLoadingLabel ?? "Match my CV"}
+                      heading="Let your CV search for you."
+                      isContinueBusy={Boolean(uploadLoadingLabel)}
+                      job={homeJob}
+                      lead="Upload your CV and Ditto will match your experience to relevant roles."
+                      onContinue={runCvMatch}
+                      onResumeStateChange={setHomeResumeState}
+                      resumeState={homeResumeState}
+                      session={uploadSession}
+                      showBackAction={false}
+                      showCompanyHeading={false}
+                      showContinueWhenEmpty={false}
+                      showKicker={false}
+                      variant="home"
+                    />
+                  ) : null}
+
+                  {authGate?.tab === "upload-cv" ? (
+                    <HomeInlineAuthGate
+                      mode={authGate.mode}
+                      onComplete={completeMockAuth}
+                      onDismiss={() => setAuthGate(null)}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

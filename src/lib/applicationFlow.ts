@@ -27,6 +27,7 @@ export interface ApplicationTransitionPayload {
 const APPLICATION_ROUTE_ORDER: Record<AppRoute["kind"], number> = {
   home: 0,
   "global-auth": 1,
+  terms: 1,
   "job-search": 2,
   "job-view": 3,
   "application-auth": 4,
@@ -41,7 +42,7 @@ const APPLICATION_ROUTE_ORDER: Record<AppRoute["kind"], number> = {
 };
 
 export function getApplicationRouteKey(route: AppRoute): string {
-  if (route.kind === "home" || route.kind === "job-search" || route.kind === "not-found") {
+  if (route.kind === "home" || route.kind === "terms" || route.kind === "job-search" || route.kind === "not-found") {
     return route.kind;
   }
 
